@@ -374,6 +374,31 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
 (function(){
   var KEY = 'bakery_v1';
   var DEF = { settings:{price:40, dough:10, cook:10, seller:1000, float:7000}, days:{}, ledger:[] };
+  function asList(value){
+    if(Array.isArray(value)) return value;
+    if(value && typeof value==='object'){
+      if(['id','kind','label','amt','amount','reason','type'].some(function(k){return Object.prototype.hasOwnProperty.call(value,k);})) return [value];
+      return Object.keys(value).sort().map(function(k){return value[k];});
+    }
+    return [];
+  }
+  function normalizeState(value){
+    var src=value&&typeof value==='object'?value:{};
+    var out={
+      settings:Object.assign({},DEF.settings,src.settings&&typeof src.settings==='object'?src.settings:{}),
+      days:src.days&&typeof src.days==='object'?src.days:{},
+      ledger:asList(src.ledger)
+    };
+    Object.keys(out.days).forEach(function(date){
+      var d=out.days[date];
+      if(!d||typeof d!=='object'||Array.isArray(d)){d={};out.days[date]=d;}
+      d.charges=asList(d.charges);
+      d.waste=asList(d.waste);
+      d.extras=asList(d.extras);
+      if(!d.shifts||typeof d.shifts!=='object'||Array.isArray(d.shifts)) d.shifts={};
+    });
+    return out;
+  }
   var CHIPS = ['غاز','زيت','دقيق','خميرة','ملح','الورق'];
 
   var $ = function(s){ return document.querySelector(s); };
@@ -401,10 +426,10 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       var r = localStorage.getItem(KEY);
       if (r){
         var o = JSON.parse(r);
-        return { settings:Object.assign({}, DEF.settings, o.settings), days:o.days || {}, ledger:o.ledger || [] };
+        return normalizeState(o);
       }
     } catch(e){}
-    return JSON.parse(JSON.stringify(DEF));
+    return normalizeState(JSON.parse(JSON.stringify(DEF)));
   }
   var S = load();
   var SUPABASE_URL = 'https://svbrddhkhoqwztwxlbhj.supabase.co';
@@ -429,7 +454,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     const {data:remote,error:readError}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
     if(readError||!remote){setSync('تعارض في الحفظ؛ احتفظ بنسخة احتياطية قبل المتابعة');return;}
     const local=S, server=remote.payload||{};
-    S={settings:Object.assign({},DEF.settings,server.settings||{},local.settings||{}),days:Object.assign({},server.days||{},local.days||{}),ledger:Array.from(new Map([...(server.ledger||[]),...(local.ledger||[])].map(x=>[x.id,x])).values())};
+    S=normalizeState({settings:Object.assign({},DEF.settings,server.settings||{},local.settings||{}),days:Object.assign({},server.days||{},local.days||{}),ledger:Array.from(new Map([...asList(server.ledger),...asList(local.ledger)].map(function(x){return [x.id,x];})).values())});
     cloud.version=remote.updated_at;
     try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
     setSync('تم دمج التعديلات المتزامنة؛ جارٍ إعادة الحفظ…');
@@ -438,7 +463,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   async function loadShared(){
     const {data,error}=await withTimeout(sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle(),15000,'تأخر تحميل بيانات المخبزة من قاعدة البيانات. تحقق من الاتصال ثم أعد المحاولة.');
     if(error) throw error;
-    if(data && data.payload){      S={settings:Object.assign({},DEF.settings,data.payload.settings||{}),days:data.payload.days||{},ledger:Array.isArray(data.payload.ledger)?data.payload.ledger:[]};
+    if(data && data.payload){      S=normalizeState(data.payload);
       cloud.version=data.updated_at;
       try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
     } else {
@@ -446,7 +471,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       if(ins && ins.code!=='23505') throw ins;
       const {data:created,error:readError}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).single();
       if(readError) throw readError;
-      if(created){cloud.version=created.updated_at;S=created.payload||S;}
+      if(created){cloud.version=created.updated_at;S=normalizeState(created.payload||S);}
     }
   }
   function showLogin(show){ $('#loginGate').style.display=show?'grid':'none'; }
@@ -467,7 +492,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     if(cloud.channel){ await sb.removeChannel(cloud.channel); cloud.channel=null; }
     cloud.channel=sb.channel('bakery-shared-state').on('postgres_changes',{event:'*',schema:'public',table:'bakery_app_state'},async()=>{
       const {data}=await sb.from('bakery_app_state').select('payload').eq('id',1).maybeSingle();
-      if(data&&data.payload){ S={settings:Object.assign({},DEF.settings,data.payload.settings||{}),days:data.payload.days||{},ledger:data.payload.ledger||[]}; try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} refreshDay();renderBadge(); if(tab==='debts')renderDebts();if(tab==='hist')renderHist(); }
+      if(data&&data.payload){ S=normalizeState(data.payload); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} refreshDay();renderBadge(); if(tab==='debts')renderDebts();if(tab==='hist')renderHist(); }
     }).subscribe();
   }
   function withTimeout(promise, ms, message){
