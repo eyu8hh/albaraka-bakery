@@ -643,7 +643,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     var expected = carryFloat + net;
     var counted = (d.counted === undefined || !/[0-9\u0660-\u0669\u06F0-\u06F9]/.test(String(d.counted))) ? null : num(d.counted);
     var diff = counted === null ? null : counted - expected;
-    return {rows:rows, persons:persons, shiftPaid:shiftPaid, shiftTaken:shiftTaken, shiftDue:shiftDue, cashPaid:cashPaid, breadVal:breadVal, breadN:breadN, charity:charity, charityVal:charityVal, wasteBy:wasteBy, wasteN:wasteN, wasteVal:wasteVal, ownerCash:ownerCash, ownerBread:ownerBread, ownerBreadVal:ownerBreadVal, houseCash:houseCash, houseBread:houseBread, houseBreadVal:houseBreadVal, workerInternal:workerInternal, workerInternalVal:workerInternalVal, n:n, nM:nM, nE:nE, rev:rev, ch:ch, debt:debt, debtN:debtN, repay:repay, net:net, expected:expected, counted:counted, diff:diff};
+    return {rows:rows, persons:persons, shiftPaid:shiftPaid, shiftTaken:shiftTaken, shiftDue:shiftDue, cashPaid:cashPaid, breadVal:breadVal, breadN:breadN, charity:charity, charityVal:charityVal, wasteBy:wasteBy, wasteN:wasteN, wasteVal:wasteVal, ownerCash:ownerCash, ownerBread:ownerBread, ownerBreadVal:ownerBreadVal, houseCash:houseCash, houseBread:houseBread, houseBreadVal:houseBreadVal, workerInternal:workerInternal, workerInternalVal:workerInternalVal, n:n, nM:nM, nE:nE, rev:rev, ch:ch, debt:debt, debtN:debtN, repay:repay, net:net, float:carryFloat, expected:expected, counted:counted, diff:diff};
   }
 
   function carryBefore(date, name){
