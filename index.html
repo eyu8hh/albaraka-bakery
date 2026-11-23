@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>مخبزة البركة</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#EDF0EF; --paper:#FFFFFF; --ink:#1B2733; --muted:#5B6975; --line:#D6DCE0; --field:#F6F8F7;
+  --accent:#8F5600; --on-accent:#FFFFFF; --accent-soft:#F4E8D2;
+  --pos:#17694A; --neg:#B0322A;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10171D; --paper:#192329; --ink:#E8EDF0; --muted:#9AA8B3; --line:#2C3944; --field:#131C22;
+    --accent:#E3A640; --on-accent:#1B1200; --accent-soft:#2C2412;
+    --pos:#52C890; --neg:#F28B82;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10171D; --paper:#192329; --ink:#E8EDF0; --muted:#9AA8B3; --line:#2C3944; --field:#131C22;
+  --accent:#E3A640; --on-accent:#1B1200; --accent-soft:#2C2412;
+  --pos:#52C890; --neg:#F28B82;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans Arabic","Segoe UI",Tahoma,system-ui,sans-serif;
+  font-size:16px; line-height:1.55; -webkit-text-size-adjust:100%;
+}
+.app{max-width:560px; margin:0 auto; padding:16px 14px 120px}
+.n{direction:ltr; unicode-bidi:isolate; display:inline-block; font-variant-numeric:tabular-nums; white-space:nowrap}
+h1{font-size:22px; margin:0; font-weight:700; letter-spacing:0}
+h2{font-size:15px; margin:0 0 10px; font-weight:600; color:var(--muted)}
+header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px}
+header .sub{display:block; font-size:13px; color:var(--muted); margin-top:-2px}
+input,button,textarea{font:inherit; color:inherit}
+input[type=date],input[type=number],input[type=text],input:not([type]),textarea{
+  width:100%; background:var(--field); border:1px solid var(--line); border-radius:10px;
+  padding:10px 12px; min-height:44px;
+}
+input[inputmode="decimal"],input[inputmode="numeric"]{direction:ltr; text-align:center}
+input.bad{border-color:var(--neg); outline:2px solid var(--neg)}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+input[type=date]{width:auto; direction:ltr; text-align:center}
+:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+button{cursor:pointer; border:1px solid var(--line); background:var(--paper); border-radius:10px; min-height:44px; padding:0 14px}
+button.primary{background:var(--accent); color:var(--on-accent); border-color:var(--accent); font-weight:600}
+button.danger{background:var(--neg); color:#fff; border-color:var(--neg)}
+.tabs{display:grid; grid-template-columns:repeat(4,1fr); gap:4px; background:var(--paper); padding:4px; border-radius:12px; border:1px solid var(--line); margin-bottom:14px}
+.tabs button{border:0; background:transparent; min-height:42px; padding:0 4px; border-radius:9px; color:var(--muted); font-weight:500; font-size:15px}
+.tabs button.on{background:var(--ink); color:var(--bg); font-weight:600}
+.badge{display:inline-block; font-size:11px; margin-inline-start:4px; padding:0 6px; border-radius:99px; background:var(--accent); color:var(--on-accent); vertical-align:middle}
+.card{background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px}
+.hero{padding:18px 14px 14px; text-align:center}
+.hero label{display:block; font-weight:600; color:var(--muted); font-size:15px}
+.two{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.hero input{font-size:36px; font-weight:700; text-align:center; min-height:64px; margin:8px 0 6px; border-radius:12px; background:var(--accent-soft); border-color:transparent}
+.shift{padding:8px 0 6px; border-bottom:1px dashed var(--line)}
+.shift:last-of-type{border-bottom:0}
+.shh{display:flex; justify-content:space-between; align-items:baseline}
+.wg{display:grid; grid-template-columns:1.25fr .65fr 1fr 1fr; gap:5px}
+.wg input{padding:6px 4px; min-height:42px; font-size:14px; min-width:0}
+.wg input[type=text]{padding:6px 8px}
+.wg .due{font-size:13px; min-height:42px; padding:0 2px}
+.wgh span{font-size:12px; color:var(--muted); text-align:center}
+.wrl{font-size:14px; margin:8px 0 3px}
+.pp{padding:6px 0; border-bottom:1px dashed var(--line)}
+.wk{padding:10px 0; border-bottom:1px dashed var(--line)}
+.wk:last-of-type{border-bottom:0}
+.wkh{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px}
+.wk label{display:block; font-size:13px; color:var(--muted); margin-bottom:3px}
+.due{min-height:44px; display:flex; align-items:center; justify-content:center; border-radius:10px; background:var(--accent-soft); font-weight:700}
+.wst{font-size:13px; margin-top:6px; color:var(--muted)}
+.hint{font-size:13px; color:var(--muted); margin:6px 0 0}
+.line{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px dashed var(--line)}
+.line:last-child{border-bottom:0}
+.line small{display:block; color:var(--muted); font-size:12px}
+.line b{font-weight:600}
+.item{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px dashed var(--line)}
+.item .grow{flex:1; min-width:0; overflow-wrap:anywhere}
+.item small{color:var(--muted); display:block; font-size:12px}
+.x{min-height:36px; width:36px; padding:0; color:var(--muted); font-size:18px; line-height:1}
+.add{display:grid; grid-template-columns:1.4fr 1fr auto; gap:8px; margin-top:10px}
+.add button{padding:0 16px}
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+.chips button{min-height:34px; font-size:13px; padding:0 11px; border-radius:99px; color:var(--muted)}
+.total{display:flex; justify-content:space-between; margin-top:10px; font-weight:600}
+.stepper{display:flex; align-items:center; gap:2px}
+.stepper button{min-height:38px; width:38px; padding:0; font-size:20px}
+.stepper b{min-width:26px; text-align:center}
+.seg{display:grid; grid-template-columns:1fr 1fr; gap:4px; background:var(--field); border:1px solid var(--line); border-radius:10px; padding:3px}
+.seg button{border:0; background:transparent; min-height:38px; color:var(--muted)}
+.seg button.on{background:var(--ink); color:var(--bg); font-weight:600}
+.tag{font-size:12px; border-radius:6px; padding:1px 7px; margin-inline-end:6px}
+.tag.debt{background:var(--accent-soft); color:var(--accent)}
+.tag.pay{background:color-mix(in srgb,var(--pos) 16%,transparent); color:var(--pos)}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+.receipt{position:relative; background:var(--paper); border:1px solid var(--line); border-bottom:0; border-radius:14px 14px 0 0; padding:16px 16px 22px; margin-bottom:22px}
+.receipt::after{content:""; position:absolute; left:-1px; right:-1px; bottom:-9px; height:9px;
+  background:radial-gradient(circle at 7px 0, transparent 6px, var(--paper) 6.5px) repeat-x; background-size:14px 9px}
+.receipt h2{text-align:center; margin-bottom:12px}
+.rline{display:grid; grid-template-columns:18px 1fr auto; gap:6px; padding:5px 0; align-items:baseline}
+.rline .s{font-weight:700; text-align:center}
+.rline small{color:var(--muted); margin-inline-start:6px}
+.rnet{display:flex; justify-content:space-between; align-items:baseline; gap:10px; border-top:2px dashed var(--ink); margin-top:10px; padding-top:12px}
+.rnet span{font-weight:600}
+.rnet .v{font-size:34px; font-weight:700; line-height:1.1}
+.float{display:grid; grid-template-columns:1fr auto auto; column-gap:12px; row-gap:2px; font-size:14px}
+.float .h{color:var(--muted); font-size:12px}
+.float .r{text-align:end}
+.diff{margin-top:10px; padding:10px 12px; border-radius:10px; font-weight:600; background:var(--field)}
+.sum{text-align:center}
+.sum .lab{color:var(--muted); font-size:14px}
+.sum .big{font-size:34px; font-weight:700}
+.person .ph{display:flex; justify-content:space-between; align-items:baseline; gap:10px}
+.person .ph b{font-size:17px}
+.repay{display:grid; grid-template-columns:1fr auto; gap:8px; margin:10px 0 6px}
+details summary{cursor:pointer; color:var(--muted); font-size:14px; padding:6px 0; min-height:32px}
+.empty{color:var(--muted); text-align:center; padding:22px 8px}
+.hrow{display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; margin-bottom:8px}
+.hrow .open{display:flex; justify-content:space-between; align-items:center; gap:10px; text-align:start; height:auto; padding:10px 12px; width:100%}
+.hrow .open small{display:block; color:var(--muted); font-size:12px}
+.field{margin-bottom:12px}
+.field label{display:block; font-size:14px; color:var(--muted); margin-bottom:4px}
+.bar{position:fixed; left:0; right:0; bottom:0; z-index:5; background:var(--ink); color:var(--bg);
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px)); display:flex; justify-content:space-between; align-items:baseline; gap:12px}
+.bar .v{font-size:24px; font-weight:700}
+.bar small{opacity:.75; font-size:12px}
+.okbar{background:var(--ink); color:var(--bg); direction:rtl; text-align:right}
+fieldset{border:0; padding:0; margin:0; min-width:0}
+.seg.three{grid-template-columns:repeat(3,1fr); margin-bottom:8px}
+.seg button{font-size:13px; line-height:1.25; padding:4px}
+.seg button.on::before{content:"✓ "}
+.seg.bad{outline:2px solid var(--neg)}
+.add2{display:grid; grid-template-columns:1fr auto; gap:8px}
+.add2 button{padding:0 16px}
+.errbar{background:var(--neg); color:#fff; border-radius:10px; padding:8px 12px; margin-bottom:10px; font-size:14px; direction:ltr; text-align:left; overflow-wrap:anywhere}
+[hidden]{display:none!important}
+textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
+#report{direction:rtl; text-align:right; font-size:14px; min-height:260px; line-height:1.6; resize:vertical}
+.rbtns{display:grid; grid-template-columns:1fr; gap:8px; margin-top:8px}
+.rbtns:has(#rShare:not([hidden])){grid-template-columns:1fr 1fr}
+</style>
+</head>
+<body>
+<div id="loginGate" style="position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;place-items:center;padding:20px">
+ <form id="loginForm" class="card" style="width:min(100%,420px);margin:0">
+  <h1 style="margin-bottom:8px">مخبزة البركة</h1><p class="hint">سجّل الدخول للمتابعة</p>
+  <div class="field"><label for="loginUser">اسم المستخدم</label><input id="loginUser" type="text" autocomplete="username" required></div>
+  <div class="field"><label for="loginPass">كلمة المرور</label><input id="loginPass" type="password" autocomplete="current-password" required></div>
+  <button class="primary" type="submit" style="width:100%">دخول</button><p id="loginError" class="hint neg"></p>
+ </form>
+</div>
+<div class="app">
+  <div id="err" class="errbar" role="alert" hidden></div>
+  <div id="ok" class="errbar okbar" role="status" hidden></div>
+  <header>
+    <div>
+      <h1>مخبزة البركة</h1>
+      <span class="sub" id="dateLbl"></span>
+    </div>
+    <input type="date" id="date" aria-label="تاريخ اليوم">
+  </header>
+
+  <nav class="tabs" aria-label="التبويبات">
+    <button data-tab="day" class="on">اليوم</button>
+    <button data-tab="debts">الديون<span class="badge" id="badge" hidden></span></button>
+    <button data-tab="hist">السجل</button>
+    <button data-tab="shops">المحلات</button>
+    <button data-tab="set">الإعدادات</button>
+  </nav>
+
+  <!-- اليوم -->
+  <section id="t-day">
+    <div class="card" id="closedBanner" hidden><b class="pos">✓ اليوم منتهٍ ومحفوظ في السجل</b><div class="hint">للتعديل اضغط «إعادة فتح اليوم» أسفل الصفحة.</div></div>
+    <fieldset id="dayFs">
+    <div class="card hero">
+      <div class="two">
+        <div><label for="loavesM">خبز الصباح</label><input id="loavesM" type="text" inputmode="numeric" min="0" placeholder="0"></div>
+        <div><label for="loavesE">خبز المساء</label><input id="loavesE" type="text" inputmode="numeric" min="0" placeholder="0"></div>
+      </div>
+      <div class="hint" id="revLine"></div>
+    </div>
+
+    <div class="card">
+      <h2>المصاريف من الخزنة</h2>
+      <div id="chargeList"></div>
+      <div class="chips" id="chips"></div>
+      <div class="add">
+        <input id="cLabel" type="text" placeholder="مثلا: قنينة غاز" autocomplete="off">
+        <input id="cAmt" type="text" inputmode="decimal" placeholder="الثمن">
+        <button class="primary" id="cAdd">إضافة</button>
+      </div>
+      <div class="total"><span>مجموع المصاريف</span><span id="chargeTotal"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>أجور العمال</h2>
+      <div id="workers"></div>
+      <p class="hint">لكل فترة اكتب اسم العامل وما أخذه. اتركه فارغا إذا أخذ مستحقه كاملا. خانة «خبز» لعدد الخبز الذي أخذه معه: لا يُخصم من مستحقه، لكن ثمنه يُخصم من الصافي لأنه لم يُبَع. إذا كتبتَ «أنا» (صاحب المخبزة) فلا أجر لتلك الخانة. ما بقي للعامل أو أخذه زيادة يُرحَّل لليوم التالي.</p>
+    </div>
+
+    <div class="card">
+      <h2>الديون</h2>
+      <div class="seg" id="dType">
+        <button class="on" data-t="debt">خبز بالدين</button>
+        <button data-t="pay">استرجاع دين</button>
+      </div>
+      <div class="add">
+        <input id="dName" type="text" list="names" placeholder="اسم الشخص" autocomplete="off">
+        <input id="dVal" type="text" inputmode="decimal" placeholder="عدد الخبز">
+        <button class="primary" id="dAdd">إضافة</button>
+      </div>
+      <datalist id="names"></datalist>
+      <div class="hint" id="dPrev"></div>
+      <div id="dList"></div>
+    </div>
+
+    <div class="card">
+      <h2>صدقة</h2>
+      <label for="charity" class="hint" style="display:block;margin:0 0 6px">عدد الخبز المعطى صدقة اليوم</label>
+      <input id="charity" type="text" inputmode="numeric" min="0" placeholder="0">
+      <div class="hint" id="charityLine"></div>
+    </div>
+
+    <div class="card">
+      <h2>الخبز الملغي</h2>
+      <div id="wasteList"></div>
+      <div class="seg three" id="wReason" role="radiogroup" aria-label="سبب الإلغاء"></div>
+      <div class="add2">
+        <input id="wVal" type="text" inputmode="numeric" placeholder="عدد الخبز">
+        <button class="primary" id="wAdd">إضافة</button>
+      </div>
+      <div class="hint" id="wasteLine"></div>
+    </div>
+
+    <div class="receipt" id="receipt"></div>
+
+    <div class="card">
+      <h2>الخزنة مساء</h2>
+      <div class="field"><label for="floatCarry">المبلغ الذي سيبقى في الخزنة لليوم الموالي (قابل للتعديل حسب اليوم)</label><input id="floatCarry" type="text" inputmode="decimal" placeholder="المبلغ بالريال"></div>
+      <div class="float" id="floatBox"></div>
+      <div class="line"><span>المتوقع في الخزنة الآن</span><b id="expected"></b></div>
+      <div class="field" style="margin-top:8px">
+        <label for="counted">المبلغ الموجود فعليا في الخزنة (إجباري)</label>
+        <input id="counted" type="text" inputmode="decimal" placeholder="0">
+      </div>
+      <div class="diff" id="diffLine" hidden></div>
+    </div>
+
+    </fieldset>
+
+    <div class="card">
+      <h2>رسالة اليوم</h2>
+      <textarea id="report" readonly aria-label="رسالة اليوم"></textarea>
+      <div class="rbtns">
+        <button class="primary" id="rCopy">نسخ الرسالة</button>
+        <button id="rShare" hidden>مشاركة</button>
+      </div>
+      <p class="hint" id="rMsg"></p>
+    </div>
+
+    <div class="card">
+      <p class="hint" id="closeNote" style="margin:0 0 10px"></p>
+      <button class="primary" id="closeBtn" style="width:100%"></button>
+      <p class="hint neg" id="closeMsg"></p>
+    </div>
+  </section>
+
+  <!-- الديون -->
+  <section id="t-debts" hidden></section>
+
+  <!-- السجل -->
+  <section id="t-hist" hidden></section>
+
+  <!-- المحلات -->
+  <section id="t-shops" hidden>
+    <div class="card">
+      <h2>إضافة محل</h2>
+      <div class="add2"><input id="shopName" type="text" placeholder="اسم المحل"><button class="primary" id="shopAdd">إضافة</button></div>
+      <p class="hint">سجّل تسليمات الخبز والدفعات لكل محل. السعر يُحفظ وقت التسليم ولا يتغير بتغيير السعر لاحقاً.</p>
+    </div>
+    <div id="shopsList"></div>
+  </section>
+
+  <!-- الإعدادات -->
+  <section id="t-set" hidden>
+    <div class="card">
+      <h2>الأسعار والنسب</h2>
+      <div class="field"><label for="s-price">ثمن الخبزة (بالريال المغربي)</label><input id="s-price" data-k="price" type="text" inputmode="decimal"></div>
+      <div class="field"><label for="s-dough">نسبة عامل العجين (%)</label><input id="s-dough" data-k="dough" type="text" inputmode="decimal"></div>
+      <div class="field"><label for="s-cook">نسبة الطاهي (%)</label><input id="s-cook" data-k="cook" type="text" inputmode="decimal"></div>
+      <div class="field"><label for="s-seller">أجر البائع في اليوم الكامل (بالريال المغربي)</label><input id="s-seller" data-k="seller" type="text" inputmode="decimal"></div>
+      <div class="field"><label for="s-float">المبلغ الافتراضي للخزنة عند بدء يوم جديد (بالريال المغربي)</label><input id="s-float" data-k="float" type="text" inputmode="decimal"></div>
+    </div>
+    <div class="card">
+      <h2>الحساب والأمان</h2>
+      <p class="hint" id="accountInfo">الحساب غير متصل</p>
+      <div class="field"><label for="newPassword">كلمة مرور جديدة لحسابك</label><input id="newPassword" type="password" autocomplete="new-password" placeholder="8 أحرف على الأقل"></div>
+      <button class="primary" id="changePassword">تغيير كلمة مروري</button>
+      <button id="ownerResetSeller" hidden style="width:100%;margin-top:8px">إعادة تعيين كلمة مرور البائع</button>
+      <button id="signOut" style="width:100%;margin-top:8px">تسجيل الخروج</button>
+      <p class="hint" id="authMsg"></p>
+    </div>
+    <div class="card">
+      <h2>نسخة احتياطية</h2>
+      <p class="hint" style="margin-top:0">النسخة الاحتياطية الإضافية تُحفظ كنص يمكنك تنزيله أو الاحتفاظ به خارج الهاتف.</p>
+      <textarea id="backup" spellcheck="false" aria-label="نسخة احتياطية"></textarea>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px">
+        <button id="bShow">عرض النسخة</button>
+        <button id="bLoad">استرجاع من النص</button>
+      </div>
+      <p class="hint" id="bMsg"></p>
+    </div>
+  </section>
+</div>
+
+<div class="bar" id="bar">
+  <div><span>الصافي الذي يجب إدخاله</span><br><small id="syncLbl">يُحفظ تلقائيا</small></div>
+  <span class="v" id="barNet"></span>
+</div>
+
+<script>
+(function(){
+  var KEY = 'bakery_v1';
+  var DEF = { settings:{price:40, dough:10, cook:10, seller:1000, float:7000}, days:{}, ledger:[] };
+  var CHIPS = ['غاز','زيت','دقيق','خميرة','ملح','الورق'];
+
+  var $ = function(s){ return document.querySelector(s); };
+  var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var num = function(v){
+    var t = String(v).replace(/[\u0660-\u0669]/g, function(c){ return c.charCodeAt(0) - 1632; })
+      .replace(/[\u06F0-\u06F9]/g, function(c){ return c.charCodeAt(0) - 1776; })
+      .replace(/[\u066B\u060C,]/g, '.').replace(/[^0-9.\-]/g, '');
+    var x = parseFloat(t); return isFinite(x) ? x : 0;
+  };
+  function flag(el){ el.classList.add('bad'); el.focus(); setTimeout(function(){ el.classList.remove('bad'); }, 1800); }
+  var esc = function(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+  var uid = function(){ return Math.random().toString(36).slice(2,9) + Date.now().toString(36); };
+  var nf = new Intl.NumberFormat('en-US', {maximumFractionDigits:2});
+  var m = function(v){ return nf.format(Math.round(v*100)/100); };
+  var money = function(v){ return '<span class="n">' + (v < -0.004 ? '−' : '') + m(Math.abs(v)) + ' ريال</span>'; };
+  var iso = function(d){ return new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+  var fmtDate = function(s){
+    try { return new Date(s + 'T00:00:00').toLocaleDateString('ar-u-nu-latn', {weekday:'long', day:'numeric', month:'long'}); }
+    catch(e){ return s; }
+  };
+
+  function load(){
+    try {
+      var r = localStorage.getItem(KEY);
+      if (r){
+        var o = JSON.parse(r);
+        return { settings:Object.assign({}, DEF.settings, o.settings), days:o.days || {}, ledger:o.ledger || [] };
+      }
+    } catch(e){}
+    return JSON.parse(JSON.stringify(DEF));
+  }
+  var S = load();
+  var SUPABASE_URL = 'https://svbrddhkhoqwztwxlbhj.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_sFRbQrghlbwgFff_MJsoow_9xDHK-37';
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  var cloud = {uid:null, timer:null, ok:false, role:null, shops:[], deliveries:[], payments:[], channel:null, version:null};
+  function setSync(t){ var el = $('#syncLbl'); if (el) el.textContent = t; }
+  function save(){
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){}
+    if (cloud.ok){ setSync('جارٍ الحفظ في الحساب المشترك…'); clearTimeout(cloud.timer); cloud.timer=setTimeout(flush,700); }
+  }
+  async function flush(){
+    if (!cloud.ok) return;
+    const {data,error}=await sb.rpc('save_bakery_app_state',{p_payload:S,p_expected_updated_at:cloud.version});
+    if(error){setSync('تعذّر الحفظ السحابي — بيانات هذا الهاتف محفوظة محلياً');return;}
+    if(data===true){
+      const {data:latest}=await sb.from('bakery_app_state').select('updated_at').eq('id',1).maybeSingle();
+      if(latest) cloud.version=latest.updated_at;
+      setSync('محفوظ ومشترك ✓');
+      return;
+    }
+    const {data:remote,error:readError}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
+    if(readError||!remote){setSync('تعارض في الحفظ؛ احتفظ بنسخة احتياطية قبل المتابعة');return;}
+    const local=S, server=remote.payload||{};
+    S={settings:Object.assign({},DEF.settings,server.settings||{},local.settings||{}),days:Object.assign({},server.days||{},local.days||{}),ledger:Array.from(new Map([...(server.ledger||[]),...(local.ledger||[])].map(x=>[x.id,x])).values())};
+    cloud.version=remote.updated_at;
+    try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+    setSync('تم دمج التعديلات المتزامنة؛ جارٍ إعادة الحفظ…');
+    clearTimeout(cloud.timer);cloud.timer=setTimeout(flush,150);
+  }
+  async function loadShared(){
+    const {data,error}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
+    if(error) throw error;
+    if(data && data.payload){
+      S={settings:Object.assign({},DEF.settings,data.payload.settings||{}),days:data.payload.days||{},ledger:Array.isArray(data.payload.ledger)?data.payload.ledger:[]};
+      cloud.version=data.updated_at;
+      try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+    } else {
+      const {error:ins}=await sb.from('bakery_app_state').insert({id:1,payload:S,updated_by:cloud.uid});
+      if(ins && ins.code!=='23505') throw ins;
+      const {data:created,error:readError}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).single();
+      if(readError) throw readError;
+      if(created){cloud.version=created.updated_at;S=created.payload||S;}
+    }
+  }
+  function showLogin(show){ $('#loginGate').style.display=show?'grid':'none'; }
+  async function establishSession(session){
+    const user=session.user; const role=user.app_metadata && user.app_metadata.bakery_role;
+    if(!['owner','seller'].includes(role)){ await sb.auth.signOut(); throw new Error('هذا الحساب غير مفعّل في مخبزة البركة.'); }
+    // Prevent duplicate initialization when signInWithPassword and SIGNED_IN both deliver the same session.
+    if(cloud.uid===user.id && cloud.ok && cloud.channel) { showLogin(false); return; }
+    cloud.uid=user.id; cloud.role=role; cloud.ok=true;
+    await loadShared();
+    refreshDay(); renderBadge();
+    $('#accountInfo').textContent=(role==='owner'?'صاحب العمل — S.Youssef':'البائع — AYB&YSF')+' · متصل بالحساب المشترك';
+    $('#ownerResetSeller').hidden=role!=='owner';
+    showLogin(false);
+    if(role==='owner') setTab('shops'); else setTab('day');
+    setSync('متصل بالحساب المشترك ✓');
+    await loadShops();
+    if(cloud.channel){ await sb.removeChannel(cloud.channel); cloud.channel=null; }
+    cloud.channel=sb.channel('bakery-shared-state').on('postgres_changes',{event:'*',schema:'public',table:'bakery_app_state'},async()=>{
+      const {data}=await sb.from('bakery_app_state').select('payload').eq('id',1).maybeSingle();
+      if(data&&data.payload){ S={settings:Object.assign({},DEF.settings,data.payload.settings||{}),days:data.payload.days||{},ledger:data.payload.ledger||[]}; try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} refreshDay();renderBadge(); if(tab==='debts')renderDebts();if(tab==='hist')renderHist(); }
+    }).subscribe();
+  }
+  async function initCloud(){
+    const {data:{session}}=await sb.auth.getSession();
+    if(session){try{await establishSession(session);}catch(e){$('#loginError').textContent=e.message;showLogin(true);}}
+    else showLogin(true);
+    sb.auth.onAuthStateChange((event,session)=>{ if(event==='SIGNED_IN' && session) setTimeout(()=>establishSession(session).catch(e=>{$('#loginError').textContent=e.message;showLogin(true);}),0); else if(event==='SIGNED_OUT'){cloud.ok=false;cloud.uid=null;if(cloud.channel){sb.removeChannel(cloud.channel);cloud.channel=null;}showLogin(true);} });
+  }
+  $('#loginForm').addEventListener('submit',async e=>{
+    e.preventDefault(); $('#loginError').textContent='جارٍ التحقق…';
+    const username=$('#loginUser').value.trim().toLowerCase();
+    const email=username==='s.youssef'?'owner@albaraka-bakery.test':username==='ayb&ysf'?'seller@albaraka-bakery.test':'';
+    if(!email){$('#loginError').textContent='اسم المستخدم غير صحيح.';return;}
+    const {data,error}=await sb.auth.signInWithPassword({email,password:$('#loginPass').value});
+    if(error){$('#loginError').textContent='تعذّر تسجيل الدخول. تحقق من الاسم وكلمة المرور.';return;}
+    // The SIGNED_IN auth event initializes the session; do not initialize it a second time here.
+  });
+  $('#signOut').addEventListener('click',()=>sb.auth.signOut());
+  $('#changePassword').addEventListener('click',async()=>{
+    const password=$('#newPassword').value; if(password.length<8){$('#authMsg').textContent='استخدم 8 أحرف على الأقل.';return;}
+    const {error}=await sb.auth.updateUser({password}); $('#authMsg').textContent=error?'تعذّر تغيير كلمة المرور.': 'تم تغيير كلمة المرور.'; if(!error) $('#newPassword').value='';
+  });
+  $('#ownerResetSeller').addEventListener('click',async()=>{
+    const password=prompt('أدخل كلمة المرور الجديدة للبائع (8 أحرف على الأقل):');
+    if(!password || password.length<8){$('#authMsg').textContent='كلمة المرور قصيرة أو أُلغي الإجراء.';return;}
+    const {data:{session}}=await sb.auth.getSession();
+    const {error}=await sb.functions.invoke('bakery-admin-password',{body:{username:'seller',password},headers:{Authorization:'Bearer '+session.access_token}});
+    $('#authMsg').textContent=error?'تعذّر تغيير كلمة مرور البائع؛ تحقق من إعداد وظيفة الإدارة.':'تم تغيير كلمة مرور البائع.';
+  });
+  async function loadShops(){
+    const [shops,deliveries,payments]=await Promise.all([
+      sb.from('bakery_shops').select('*').order('created_at',{ascending:false}),
+      sb.from('bakery_shop_deliveries').select('*').order('delivered_at',{ascending:false}),
+      sb.from('bakery_shop_payments').select('*').order('paid_at',{ascending:false})
+    ]);
+    if(shops.error||deliveries.error||payments.error){$('#shopsList').textContent='تعذّر تحميل بيانات المحلات. تحقق من الاتصال ثم أعد المحاولة.';return;}
+    cloud.shops=shops.data||[]; cloud.deliveries=deliveries.data||[]; cloud.payments=payments.data||[]; renderShops();
+  }
+  function shopHistory(shop){
+    const ds=cloud.deliveries.filter(v=>v.shop_id===shop.id);
+    const ps=cloud.payments.filter(v=>v.shop_id===shop.id);
+    const rows=ds.map(v=>({at:v.delivered_at,html:'<span class="tag debt">تسليم</span> '+esc(String(v.quantity))+' خبزة × '+m(Number(v.unit_price_riyal))+' = <b>'+money(Number(v.total_riyal))+'</b>'+(v.note?' <small>'+esc(v.note)+'</small>':'' )})).concat(ps.map(v=>({at:v.paid_at,html:'<span class="tag pay">دفعة</span> <b>'+money(Number(v.amount_riyal))+'</b>'+(v.note?' <small>'+esc(v.note)+'</small>':'' )}))).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+    if(!rows.length)return '<p class="hint">لا توجد عمليات مسجلة لهذا المحل.</p>';
+    return rows.slice(0,30).map(v=>'<div class="line"><div>'+v.html+'<small>'+new Date(v.at).toLocaleString('ar-MA',{dateStyle:'medium',timeStyle:'short'})+'</small></div></div>').join('');
+  }
+  function renderShops(){
+    const host=$('#shopsList'); if(!host)return;
+    if(!cloud.shops.length){host.innerHTML='<div class="card empty">لا توجد محلات بعد. أضف أول محل.</div>';return;}
+    host.innerHTML=cloud.shops.map(x=>{
+      const ds=cloud.deliveries.filter(v=>v.shop_id===x.id), ps=cloud.payments.filter(v=>v.shop_id===x.id);
+      const due=ds.reduce((a,v)=>a+Number(v.total_riyal),0),paid=ps.reduce((a,v)=>a+Number(v.amount_riyal),0);
+      const disabled=x.is_active?'':' disabled';
+      return '<div class="card"><div class="line"><b>'+esc(x.name)+'</b><span class="hint">'+(x.is_active?'نشط':'متوقف')+'</span></div>'+
+        '<div class="add2"><input data-delivery-qty="'+x.id+'" type="number" min="1" placeholder="عدد الخبز"'+disabled+'><button class="primary" data-delivery="'+x.id+'"'+disabled+'>تسجيل تسليم</button></div>'+
+        '<div class="field" style="margin-top:8px"><label>دفعة بالريال</label><div class="add2"><input data-payment-amount="'+x.id+'" type="number" min="0.01" step="0.01" placeholder="المبلغ"'+disabled+'><button data-payment="'+x.id+'"'+disabled+'>تسجيل دفعة</button></div></div>'+
+        '<div class="hint">إجمالي التسليمات: '+money(due)+' · المدفوع: '+money(paid)+' · المتبقي: <b class="'+(due-paid>0?'neg':'pos')+'">'+money(due-paid)+'</b></div>'+
+        '<div class="chips"><button data-shop-edit="'+x.id+'">تعديل الاسم</button><button data-shop-toggle="'+x.id+'">'+(x.is_active?'إيقاف المحل':'إعادة تفعيل')+'</button></div>'+
+        '<details><summary>سجل العمليات ('+(ds.length+ps.length)+')</summary>'+shopHistory(x)+'</details></div>';
+    }).join('');
+  }
+  $('#shopAdd').addEventListener('click',async()=>{const name=$('#shopName').value.trim();if(!name)return;const {error}=await sb.from('bakery_shops').insert({name});if(error){alert('تعذّرت إضافة المحل أو أن الاسم مستخدم.');return;}$('#shopName').value='';await loadShops();});
+  $('#shopsList').addEventListener('click',async e=>{
+    const edit=e.target.closest('[data-shop-edit]'); if(edit){const x=cloud.shops.find(v=>v.id===edit.dataset.shopEdit);const name=prompt('الاسم الجديد للمحل:',x.name);if(name===null)return;if(!name.trim())return alert('اكتب اسماً صحيحاً.');const {error}=await sb.from('bakery_shops').update({name:name.trim()}).eq('id',x.id);if(error)alert('تعذّر تعديل الاسم.');else await loadShops();return;}
+    const t=e.target.closest('[data-shop-toggle]'); if(t){const x=cloud.shops.find(v=>v.id===t.dataset.shopToggle);const {error}=await sb.from('bakery_shops').update({is_active:!x.is_active}).eq('id',x.id);if(error)alert('تعذّر تحديث حالة المحل.');else await loadShops();return;}
+    const d=e.target.closest('[data-delivery]');if(d){const id=d.dataset.delivery,qty=Number($('[data-delivery-qty="'+id+'"]').value);if(!Number.isInteger(qty)||qty<1){alert('أدخل كمية خبز صحيحة.');return;}const price=Number(S.settings.price||0);if(!(price>0)){alert('حدد ثمن الخبزة أولاً من الإعدادات.');return;}const {error}=await sb.from('bakery_shop_deliveries').insert({shop_id:id,quantity:qty,unit_price_riyal:price,created_by:cloud.uid});if(error)alert('تعذّر تسجيل التسليم.');else await loadShops();return;}
+    const p=e.target.closest('[data-payment]');if(p){const id=p.dataset.payment,amount=Number($('[data-payment-amount="'+id+'"]').value);if(!(amount>0)){alert('أدخل مبلغاً صحيحاً.');return;}const {error}=await sb.from('bakery_shop_payments').insert({shop_id:id,amount_riyal:amount,created_by:cloud.uid});if(error)alert('تعذّر تسجيل الدفعة.');else await loadShops();}
+  });
+
+  var cur = iso(new Date());
+  var dtype = 'debt';
+  var tab = 'day';
+
+  var OWNER = 'أنا';
+  var REASONS = [['burnt','محروق'],['dropped','سقط عند الطهي'],['left','بقي عند الإغلاق']];
+  var wreason = '';
+  var ROLES = [['dough','العجّان'],['cook','الطاهي'],['seller','البائع']];
+  var SHIFTS = [['M','الصباح'],['E','المساء']];
+  function blankShifts(){
+    var o = {};
+    SHIFTS.forEach(function(sx){ o[sx[0]] = {}; ROLES.forEach(function(r){ o[sx[0]][r[0]] = {who:'', paid:'', bread:''}; }); });
+    return o;
+  }
+  function ensureShifts(d){
+    if (!d.waste) d.waste = [];
+    var b = blankShifts();
+    if (!d.shifts) d.shifts = b;
+    SHIFTS.forEach(function(sx){
+      if (!d.shifts[sx[0]]) d.shifts[sx[0]] = b[sx[0]];
+      ROLES.forEach(function(r){ if (!d.shifts[sx[0]][r[0]]) d.shifts[sx[0]][r[0]] = {who:'', paid:'', bread:''}; if (d.shifts[sx[0]][r[0]].bread === undefined) d.shifts[sx[0]][r[0]].bread = ''; });
+    });
+  }
+  function blank(){ return {loavesM:'', loavesE:'', charity:'', waste:[], charges:[], counted:'', shifts:blankShifts()}; }
+  function D(){
+    if (!S.days[cur]){
+      var b = blank(), prev = Object.keys(S.days).filter(function(k){ return k < cur; }).sort().pop();
+      b.float = prev && S.days[prev].float !== undefined ? num(S.days[prev].float) : num(S.settings.float);
+      if (prev && S.days[prev].shifts) SHIFTS.forEach(function(sx){ ROLES.forEach(function(r){
+        var e = S.days[prev].shifts[sx[0]] && S.days[prev].shifts[sx[0]][r[0]];
+        if (e) b.shifts[sx[0]][r[0]].who = e.who || '';
+      }); });
+      S.days[cur] = b;
+    }
+    if (S.days[cur].float === undefined){
+      var prior = Object.keys(S.days).filter(function(k){ return k < cur && S.days[k].float !== undefined; }).sort().pop();
+      S.days[cur].float = prior ? num(S.days[prior].float) : num(S.settings.float);
+    }
+    ensureShifts(S.days[cur]);
+    return S.days[cur];
+  }
+
+  function calc(date){
+    var d = S.days[date] || blank(), s = S.settings;
+    var nM = num(d.loavesM !== undefined ? d.loavesM : d.loaves), nE = num(d.loavesE), n = nM + nE, rev = n * s.price;
+    var ch = d.charges.reduce(function(a,c){ return a + c.amt; }, 0);
+    var led = S.ledger.filter(function(e){ return e.date === date; });
+    var debt = led.filter(function(e){ return e.type === 'debt'; }).reduce(function(a,e){ return a + e.amt; }, 0);
+    var debtN = led.filter(function(e){ return e.type === 'debt'; }).reduce(function(a,e){ return a + (e.loaves || 0); }, 0);
+    var repay = led.filter(function(e){ return e.type === 'pay'; }).reduce(function(a,e){ return a + e.amt; }, 0);
+    var started = (d.loavesM !== undefined ? d.loavesM !== '' : d.loaves !== '') || (d.loavesE !== undefined && d.loavesE !== '') || d.charges.length > 0 || led.length > 0 || (d.charity !== undefined && d.charity !== '') || (d.waste && d.waste.length > 0);
+    var wasteBy = {burnt:0, dropped:0, left:0}, wasteN = 0;
+    (d.waste || []).forEach(function(w){ wasteBy[w.reason] = (wasteBy[w.reason] || 0) + w.n; wasteN += w.n; });
+    var wasteVal = wasteN * s.price;
+    var charity = num(d.charity), charityVal = charity * s.price;
+    var sh = d.shifts || blankShifts(), nShift = {M:nM, E:nE};
+    var rows = [], persons = {}, cashPaid = 0, breadVal = 0, breadN = 0, shiftPaid = {M:0, E:0}, shiftTaken = {M:0, E:0}, shiftDue = {M:0, E:0};
+    SHIFTS.forEach(function(sx){
+      var sk = sx[0];
+      ROLES.forEach(function(r){
+        var rk = r[0], e = (sh[sk] && sh[sk][rk]) || {who:'', paid:'', bread:''};
+        var who = String(e.who || '').trim(), owner = (who === OWNER), due = 0, bn = 0, bv = 0, cash = 0;
+        if (!owner){
+          if (rk === 'seller') due = started ? s.seller / 2 : 0;
+          else due = nShift[sk] * s.price * (rk === 'dough' ? s.dough : s.cook) / 100;
+          bn = num(e.bread); bv = bn * s.price;
+          cash = (e.paid === '' || e.paid === undefined) ? due : num(e.paid);
+        }
+        var taken = cash;
+        rows.push({sk:sk, rk:rk, who:who, owner:owner, due:due, cash:cash, bn:bn, bv:bv, taken:taken});
+        cashPaid += cash; breadVal += bv; breadN += bn;
+        shiftPaid[sk] += cash; shiftTaken[sk] += taken; shiftDue[sk] += due;
+        if (who && !owner){
+          var p = persons[who] || (persons[who] = {due:0, paid:0});
+          p.due += due; p.paid += taken;
+        }
+      });
+    });
+    var net = rev - debt - charityVal - wasteVal - breadVal + repay - ch - cashPaid;
+    var carryFloat = num(d.float !== undefined ? d.float : s.float);
+    var expected = carryFloat + net;
+    var counted = (d.counted === undefined || !/[0-9\u0660-\u0669\u06F0-\u06F9]/.test(String(d.counted))) ? null : num(d.counted);
+    var diff = counted === null ? null : counted - expected;
+    return {rows:rows, persons:persons, shiftPaid:shiftPaid, shiftTaken:shiftTaken, shiftDue:shiftDue, cashPaid:cashPaid, breadVal:breadVal, breadN:breadN, charity:charity, charityVal:charityVal, wasteBy:wasteBy, wasteN:wasteN, wasteVal:wasteVal, n:n, nM:nM, nE:nE, rev:rev, ch:ch, debt:debt, debtN:debtN, repay:repay, net:net, expected:expected, counted:counted, diff:diff};
+  }
+
+  function carryBefore(date, name){
+    var t = 0;
+    Object.keys(S.days).forEach(function(k){
+      if (k < date){ var sn = S.days[k].snap; if (sn && sn.p && sn.p[name]) t += sn.p[name].due - sn.p[name].paid; }
+    });
+    return t;
+  }
+  function knownNames(){
+    var set = {};
+    Object.keys(S.days).forEach(function(k){
+      var d = S.days[k];
+      if (d.snap && d.snap.p) Object.keys(d.snap.p).forEach(function(n){ set[n] = 1; });
+      if (d.shifts) SHIFTS.forEach(function(sx){ ROLES.forEach(function(r){
+        var e = d.shifts[sx[0]] && d.shifts[sx[0]][r[0]];
+        if (e && e.who && e.who.trim() && e.who.trim() !== OWNER) set[e.who.trim()] = 1;
+      }); });
+    });
+    return Object.keys(set);
+  }
+  function balText(b){
+    if (b > 0.004) return 'باقي له ' + money(b);
+    if (b < -0.004) return 'أخذ زيادة ' + money(-b);
+    return 'مسدّد';
+  }
+  function commit(){
+    var d = D(), c = calc(cur);
+    d.snap = {n:c.n, rev:c.rev, net:c.net, diff:c.diff, ch:c.ch, debt:c.debt, repay:c.repay, p:c.persons, closed:!!d.closed};
+    markDirty(monthOf(cur));
+    save();
+    renderCalc();
+    renderBadge();
+  }
+
+  /* ---------- ledger helpers ---------- */
+  function balances(){
+    var map = {}, out = [];
+    S.ledger.forEach(function(e){
+      var o = map[e.name];
+      if (!o){ o = map[e.name] = {name:e.name, bal:0, items:[]}; out.push(o); }
+      o.bal += (e.type === 'debt' ? e.amt : -e.amt);
+      o.items.push(e);
+    });
+    return out;
+  }
+  function totalOpen(){
+    return balances().filter(function(p){ return p.bal > 0.004; }).reduce(function(a,p){ return a + p.bal; }, 0);
+  }
+
+  /* ---------- rendering: day ---------- */
+  function fillInputs(){
+    var d = D();
+    $('#date').value = cur;
+    $('#dateLbl').textContent = fmtDate(cur);
+    if (d.loavesM === undefined){ d.loavesM = d.loaves !== undefined ? d.loaves : ''; }
+    if (d.loavesE === undefined) d.loavesE = '';
+    ensureShifts(d);
+    SHIFTS.forEach(function(sx){ ROLES.forEach(function(r){
+      var id = sx[0] + '-' + r[0], e = d.shifts[sx[0]][r[0]];
+      $('#wn-' + id).value = e.who; $('#wp-' + id).value = e.paid; $('#wb-' + id).value = e.bread;
+    }); });
+    $('#charity').value = d.charity === undefined ? '' : d.charity;
+    $('#loavesM').value = d.loavesM;
+    $('#loavesE').value = d.loavesE;
+    $('#counted').value = d.counted;
+  }
+
+  function renderCharges(){
+    var d = D();
+    $('#chargeList').innerHTML = d.charges.length ? d.charges.map(function(c){
+      return '<div class="item"><span class="grow">' + esc(c.label) + '</span><span class="n">' + m(c.amt) + ' ريال</span>' +
+        '<button class="x" data-del-charge="' + c.id + '" aria-label="حذف">×</button></div>';
+    }).join('') : '<p class="hint" style="margin:0">لا مصاريف بعد. أضف غازا أو زيتا أو أي شيء اشتريته من الخزنة.</p>';
+  }
+
+  function renderDList(){
+    var led = S.ledger.filter(function(e){ return e.date === cur; });
+    $('#dList').innerHTML = led.map(function(e){
+      var isDebt = e.type === 'debt';
+      return '<div class="item"><span class="grow"><span class="tag ' + (isDebt ? 'debt' : 'pay') + '">' + (isDebt ? 'دين' : 'استرجاع') + '</span>' + esc(e.name) +
+        (isDebt ? '<small>' + m(e.loaves || 0) + ' خبزة</small>' : '') + '</span>' +
+        '<span class="n ' + (isDebt ? 'neg' : 'pos') + '">' + m(e.amt) + ' ريال</span>' +
+        '<button class="x" data-del-led="' + e.id + '" aria-label="حذف">×</button></div>';
+    }).join('');
+    var names = balances().map(function(p){ return '<option value="' + esc(p.name) + '">'; }).join('');
+    $('#names').innerHTML = names;
+  }
+
+  function renderWaste(){
+    var d = D(), rn = {}; REASONS.forEach(function(r){ rn[r[0]] = r[1]; });
+    $('#wasteList').innerHTML = d.waste.map(function(w){
+      return '<div class="item"><span class="grow"><span class="tag debt">' + rn[w.reason] + '</span></span>' +
+        '<span class="n">' + m(w.n) + ' خبزة</span><button class="x" data-del-waste="' + w.id + '" aria-label="حذف">×</button></div>';
+    }).join('');
+    var tot = d.waste.reduce(function(a, w){ return a + w.n; }, 0);
+    $('#wasteLine').innerHTML = tot > 0 ? 'المجموع: ' + m(tot) + ' خبزة، قيمتها ' + money(tot * S.settings.price) + ' تُخصم من الصافي' : '';
+  }
+  function renderClosed(){
+    var d = D(), closed = !!d.closed;
+    $('#dayFs').disabled = closed;
+    $('#closedBanner').hidden = !closed;
+    $('#closeBtn').textContent = closed ? 'إعادة فتح اليوم للتعديل' : 'إنهاء اليوم وحفظه';
+    $('#closeNote').textContent = closed ? '' : 'عند الانتهاء من الحساب اضغط «إنهاء اليوم» ليُثبَّت في السجل وتنتقل لليوم الموالي.';
+  }
+  function renderDPreview(){
+    var v = num($('#dVal').value);
+    if (dtype === 'debt') $('#dPrev').innerHTML = v > 0 ? 'قيمة الدين: ' + money(v * S.settings.price) : '';
+    else $('#dPrev').textContent = '';
+  }
+
+  function floatRows(value){
+    var f = num(value);
+    var b = f >= 3000 ? 1000 : f / 3;
+    var rest = Math.max(0, f - 3000);
+    var notes = Math.floor(rest / 400);
+    var left = rest - notes * 400;
+    var rows = [
+      {t:'قطع', d:20, c:Math.round(b/20)},
+      {t:'قطع', d:100, c:Math.round(b/100)},
+      {t:'قطع', d:200, c:Math.round(b/200)},
+      {t:'أوراق', d:400, c:notes}
+    ];
+    return {rows:rows, left:left};
+  }
+
+  function buildReport(c){
+    var d = D(), s = S.settings, L = [];
+    var fm = function(v){ return m(v) + ' ريال'; };
+    L.push('تقرير المخبزة - ' + fmtDate(cur));
+    L.push('');
+    L.push('الخبز: الصباح ' + m(c.nM) + '، المساء ' + m(c.nE) + '، المجموع ' + m(c.n));
+    L.push('المبيعات (' + m(c.n) + ' × ' + m(s.price) + '): ' + fm(c.rev));
+    if (c.charity) L.push('خبز صدقة: ' + m(c.charity) + ' خبزة (' + fm(c.charityVal) + ')');
+    if (c.breadN) L.push('خبز أخذه العمال: ' + m(c.breadN) + ' خبزة (' + fm(c.breadVal) + ')');
+    if (c.wasteN){
+      L.push('خبز ملغي: ' + m(c.wasteN) + ' خبزة (' + fm(c.wasteVal) + ')');
+      REASONS.forEach(function(r){ if (c.wasteBy[r[0]]) L.push('- ' + r[1] + ': ' + m(c.wasteBy[r[0]]) + ' خبزة'); });
+    }
+    var led = S.ledger.filter(function(e){ return e.date === cur; });
+    var debts = led.filter(function(e){ return e.type === 'debt'; }), pays = led.filter(function(e){ return e.type === 'pay'; });
+    if (debts.length){ L.push(''); L.push('خبز بالدين:'); debts.forEach(function(e){ L.push('- ' + e.name + ': ' + m(e.loaves || 0) + ' خبزة (' + fm(e.amt) + ')'); }); }
+    if (pays.length){ L.push(''); L.push('ديون مسترجعة:'); pays.forEach(function(e){ L.push('- ' + e.name + ': ' + fm(e.amt)); }); }
+    L.push('');
+    L.push('المصاريف:');
+    if (d.charges.length) d.charges.forEach(function(x){ L.push('- ' + x.label + ': ' + fm(x.amt)); });
+    else L.push('- لا شيء');
+    L.push('مجموع المصاريف: ' + fm(c.ch));
+    var rn = {}; ROLES.forEach(function(r){ rn[r[0]] = r[1]; });
+    SHIFTS.forEach(function(sx){
+      L.push(''); L.push('أجور ' + sx[1] + ' (' + m(sx[0] === 'M' ? c.nM : c.nE) + ' خبزة):');
+      c.rows.filter(function(r){ return r.sk === sx[0]; }).forEach(function(r){
+        var who = r.who || 'بدون اسم';
+        if (r.owner) L.push('- ' + rn[r.rk] + ': ' + OWNER + ' (بدون أجر)');
+        else L.push('- ' + rn[r.rk] + ': ' + who + '، يستحق ' + fm(r.due) + '، أخذ ' + fm(r.cash) + (r.bn ? '، خبز ' + m(r.bn) : ''));
+      });
+    });
+    var names = {};
+    Object.keys(c.persons).forEach(function(n){ names[n] = 1; });
+    knownNames().forEach(function(n){ if (Math.abs(carryBefore(cur, n)) > 0.004) names[n] = 1; });
+    var plist = Object.keys(names).filter(function(n){
+      var carry = carryBefore(cur, n), p = c.persons[n] || {due:0, paid:0};
+      return Math.abs(carry + p.due - p.paid) > 0.004;
+    });
+    if (plist.length){
+      L.push(''); L.push('متبقي العمال:');
+      plist.forEach(function(n){
+        var p = c.persons[n] || {due:0, paid:0}, bal = carryBefore(cur, n) + p.due - p.paid;
+        L.push('- ' + n + ': ' + (bal > 0 ? 'باقي له ' + fm(bal) : 'أخذ زيادة ' + fm(-bal)));
+      });
+    }
+    L.push('');
+    L.push('الصافي الذي يجب إدخاله: ' + fm(c.net));
+    L.push('يبقى في الخزنة لليوم الموالي: ' + fm(c.float));
+    L.push('المتوقع في الخزنة: ' + fm(c.expected));
+    if (c.counted === null) L.push('المبلغ الموجود فعليا في الخزنة: لم يُدخل بعد');
+    else {
+      L.push('المبلغ الموجود فعليا في الخزنة: ' + fm(c.counted));
+      L.push(Math.abs(c.diff) < 0.005 ? 'الحساب مضبوط' : (c.diff > 0 ? 'زيادة: ' + fm(c.diff) : 'نقص: ' + fm(-c.diff)));
+    }
+    return L.join('\n');
+  }
+
+  function renderCalc(){
+    var s = S.settings, d = D(), c = calc(cur);
+    $('#revLine').innerHTML = c.n > 0 ? 'المجموع: ' + m(c.nM) + ' + ' + m(c.nE) + ' = ' + m(c.n) + ' خبزة × ' + m(s.price) + ' = ' + money(c.rev) : 'أدخل خبز الصباح وخبز المساء لحساب المبيعات';
+    $('#chargeTotal').innerHTML = money(c.ch);
+    $('#charityLine').innerHTML = c.charity > 0 ? 'قيمتها ' + money(c.charityVal) + ' تُخصم من المبيعات' : '';
+    $('#sl-M').textContent = m(c.nM) + ' خبزة';
+    $('#sl-E').textContent = m(c.nE) + ' خبزة';
+    c.rows.forEach(function(r){
+      var id = r.sk + '-' + r.rk;
+      $('#wd-' + id).innerHTML = r.owner ? '—' : money(r.due);
+      var pi = $('#wp-' + id);
+      pi.placeholder = r.owner ? '—' : m(r.due);
+      pi.disabled = r.owner;
+      $('#wb-' + id).disabled = r.owner;
+    });
+    var names = {};
+    Object.keys(c.persons).forEach(function(n){ names[n] = 1; });
+    knownNames().forEach(function(n){ if (Math.abs(carryBefore(cur, n)) > 0.004) names[n] = 1; });
+    var plist = Object.keys(names);
+    $('#people').innerHTML = plist.length ? '<h2 style="margin:14px 0 4px">حساب كل عامل</h2>' + plist.map(function(n){
+      var carry = carryBefore(cur, n), p = c.persons[n] || {due:0, paid:0}, bal = carry + p.due - p.paid;
+      return '<div class="wst pp"><b>' + esc(n) + '</b> · ' +
+        (Math.abs(carry) > 0.004 ? 'قبل اليوم: ' + balText(carry) + ' · ' : '') +
+        'اليوم: يستحق ' + money(p.due) + '، أخذ ' + money(p.paid) + '' +
+        '<br>بعد اليوم: <b class="' + (bal < -0.004 ? 'neg' : '') + '">' + balText(bal) + '</b></div>';
+    }).join('') : '';
+    $('#wnames').innerHTML = [OWNER].concat(knownNames()).map(function(n){ return '<option value="' + esc(n) + '">'; }).join('');
+
+    var rows = [];
+    rows.push(['+', 'مبيعات الخبز', '<small class="n">' + m(c.n) + ' × ' + m(s.price) + '</small>', c.rev, 'pos']);
+    if (c.debt) rows.push(['−', 'خبز بالدين', '<small class="n">' + m(c.debtN) + ' خبزة</small>', c.debt, 'neg']);
+    if (c.charity) rows.push(['−', 'خبز صدقة', '<small class="n">' + m(c.charity) + ' خبزة</small>', c.charityVal, 'neg']);
+    if (c.breadN) rows.push(['−', 'خبز أخذه العمال', '<small class="n">' + m(c.breadN) + ' خبزة</small>', c.breadVal, 'neg']);
+    if (c.wasteN) rows.push(['−', 'خبز ملغي', '<small class="n">' + m(c.wasteN) + ' خبزة</small>', c.wasteVal, 'neg']);
+    if (c.repay) rows.push(['+', 'ديون مسترجعة', '', c.repay, 'pos']);
+    rows.push(['−', 'المصاريف', '', c.ch, 'neg']);
+    SHIFTS.forEach(function(sx){
+      var k = sx[0], diff = Math.abs(c.shiftTaken[k] - c.shiftDue[k]) > 0.004;
+      rows.push(['−', 'أجور ' + sx[1], diff ? '<small class="n">المستحق ' + m(c.shiftDue[k]) + '</small>' : '', c.shiftPaid[k], 'neg']);
+    });
+    $('#receipt').innerHTML = '<h2>حساب اليوم</h2>' + rows.map(function(r){
+      return '<div class="rline"><span class="s ' + r[4] + '">' + r[0] + '</span><span>' + r[1] + r[2] + '</span><span class="' + r[4] + '">' + money(r[3]) + '</span></div>';
+    }).join('') +
+    '<div class="rnet"><span>الصافي الذي يجب إدخاله</span><span class="v ' + (c.net < 0 ? 'neg' : '') + '">' + money(c.net) + '</span></div>' +
+    (c.net < 0 ? '<p class="hint neg">المصاريف والأجور أكبر من المبيعات اليوم.</p>' : '');
+
+    var fr = floatRows(c.float);
+    if (document.activeElement !== $('#floatCarry')) $('#floatCarry').value = m(c.float);
+    $('#floatBox').innerHTML = '<span class="h">الفئة</span><span class="h r">العدد</span><span class="h r">المجموع</span>' +
+      fr.rows.map(function(r){
+        return '<span>' + r.t + ' من ' + r.d + ' ريال</span><span class="r n">' + r.c + '</span><span class="r n">' + m(r.c * r.d) + ' ريال</span>';
+      }).join('') +
+      (fr.left > 0 ? '<span>باقي غير موزع</span><span></span><span class="r n">' + m(fr.left) + ' ريال</span>' : '');
+    $('#expected').innerHTML = money(c.expected);
+
+    var dl = $('#diffLine');
+    if (c.diff === null){ dl.hidden = false; dl.className = 'diff'; dl.textContent = 'أدخل المبلغ الموجود في الخزنة حتى تتمكن من نسخ الرسالة.'; }
+    else {
+      dl.hidden = false;
+      if (Math.abs(c.diff) < 0.005){ dl.className = 'diff pos'; dl.textContent = 'الحساب مضبوط، لا فرق.'; }
+      else if (c.diff > 0){ dl.className = 'diff pos'; dl.innerHTML = 'زيادة (بقشيش أو خطأ في العدّ): ' + money(c.diff); }
+      else { dl.className = 'diff neg'; dl.innerHTML = 'نقص في الخزنة: ' + money(c.diff); }
+    }
+    $('#barNet').innerHTML = money(c.net);
+    $('#report').value = buildReport(c);
+    renderClosed();
+  }
+
+  function renderBadge(){
+    var t = totalOpen(), b = $('#badge');
+    b.hidden = !(t > 0.004);
+    b.textContent = m(t);
+  }
+
+  /* ---------- rendering: debts ---------- */
+  function personCard(p){
+    var items = p.items.slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).map(function(e){
+      var isDebt = e.type === 'debt';
+      return '<div class="item"><span class="grow"><span class="tag ' + (isDebt ? 'debt' : 'pay') + '">' + (isDebt ? 'دين' : 'استرجاع') + '</span>' + esc(fmtDate(e.date)) +
+        (isDebt ? '<small>' + m(e.loaves || 0) + ' خبزة</small>' : '') + '</span>' +
+        '<span class="n ' + (isDebt ? 'neg' : 'pos') + '">' + m(e.amt) + ' ريال</span>' +
+        '<button class="x" data-del-led="' + e.id + '" aria-label="حذف">×</button></div>';
+    }).join('');
+    var open = p.bal > 0.004, dayClosed = !!(S.days[cur] && S.days[cur].closed);
+    return '<div class="card person" data-name="' + esc(p.name) + '"><div class="ph"><b>' + esc(p.name) + '</b>' +
+      '<span class="' + (open ? 'neg' : 'pos') + '">' + (open ? money(p.bal) : (p.bal < -0.004 ? 'زائد ' + money(-p.bal) : 'مسدّد')) + '</span></div>' +
+      (open && !dayClosed ? '<div class="repay"><input type="text" inputmode="decimal" placeholder="الكل (' + m(p.bal) + ')" aria-label="المبلغ المسترجع"><button class="primary" data-repay="1">استرجاع</button></div>' : '') +
+      '<details><summary>السجل</summary>' + items + '</details></div>';
+  }
+
+  function renderDebts(){
+    var list = balances();
+    var open = list.filter(function(p){ return p.bal > 0.004; }).sort(function(a,b){ return b.bal - a.bal; });
+    var done = list.filter(function(p){ return p.bal <= 0.004; });
+    var total = open.reduce(function(a,p){ return a + p.bal; }, 0);
+    var html = '<div class="card sum"><div class="lab">مجموع الديون الباقية</div><div class="big">' + money(total) + '</div></div>';
+    if (open.length) html += (S.days[cur] && S.days[cur].closed) ? '<p class="hint neg" style="margin:0 2px 10px">اليوم المحدد (' + esc(fmtDate(cur)) + ') منتهٍ. غيّر التاريخ إلى يوم مفتوح لتسجيل استرجاع.</p>' : '<p class="hint" style="margin:0 2px 10px">الاسترجاع يُسجَّل بتاريخ ' + esc(fmtDate(cur)) + '.</p>';
+    if (!open.length) html += '<p class="empty">لا توجد ديون باقية.<br>أضف خبزا بالدين من تبويب «اليوم».</p>';
+    html += open.map(personCard).join('');
+    if (done.length) html += '<details style="margin-top:6px"><summary>مسدّدة (' + done.length + ')</summary>' + done.map(personCard).join('') + '</details>';
+    $('#t-debts').innerHTML = html;
+  }
+
+  /* ---------- rendering: history ---------- */
+  function renderHist(){
+    var rows = Object.keys(S.days).filter(function(k){
+      var sn = S.days[k].snap; return sn && (sn.n > 0 || sn.ch > 0 || sn.debt > 0 || sn.repay > 0);
+    }).sort(function(a,b){ return b.localeCompare(a); });
+    var cut = new Date(); cut.setDate(cut.getDate() - 6);
+    var cutIso = iso(cut);
+    var week = rows.filter(function(k){ return k >= cutIso; }).reduce(function(a,k){ return a + S.days[k].snap.net; }, 0);
+    var html = '<div class="card sum"><div class="lab">صافي آخر 7 أيام</div><div class="big">' + money(week) + '</div></div>';
+    if (!rows.length) html += '<p class="empty">لا أيام مسجلة بعد.</p>';
+    html += rows.map(function(k){
+      var sn = S.days[k].snap;
+      return '<div class="hrow"><button class="open" data-open="' + k + '"><span>' + esc(fmtDate(k)) +
+        '<small>' + m(sn.n) + ' خبزة' + (sn.diff !== null && sn.diff !== undefined && Math.abs(sn.diff) >= 0.005 ? ' · فرق ' + (sn.diff > 0 ? '+' : '−') + m(Math.abs(sn.diff)) : '') + (sn.closed ? ' · ✓ منتهٍ' : ' · مفتوح') + '</small></span>' +
+        '<b class="' + (sn.net < 0 ? 'neg' : '') + '">' + money(sn.net) + '</b></button>' +
+        '<button class="x" style="width:auto; padding:0 10px; font-size:13px" data-del-day="' + k + '" aria-label="حذف اليوم">حذف</button></div>';
+    }).join('');
+    $('#t-hist').innerHTML = html;
+  }
+
+  function renderSettings(){
+    $$('[data-k]').forEach(function(i){ i.value = S.settings[i.dataset.k]; });
+  }
+
+  /* ---------- tabs ---------- */
+  function setTab(t){
+    tab = t;
+    $$('.tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.tab === t); });
+    ['day','debts','hist','shops','set'].forEach(function(k){ $('#t-' + k).hidden = (k !== t); });
+    $('#bar').hidden = (t !== 'day');
+    if (t === 'debts') renderDebts();
+    if (t === 'hist') renderHist();
+    if (t === 'set') renderSettings();
+    if (t === 'shops') loadShops();
+    window.scrollTo(0, 0);
+  }
+
+  function armed(btn, fn, label){
+    if (btn.dataset.armed){ fn(); return; }
+    var old = btn.textContent;
+    btn.dataset.armed = '1'; btn.textContent = label || 'تأكيد؟'; btn.classList.add('danger');
+    setTimeout(function(){ delete btn.dataset.armed; btn.textContent = old; btn.classList.remove('danger'); }, 2500);
+  }
+
+  function refreshDay(){
+    fillInputs(); renderCharges(); renderWaste(); renderDList(); renderDPreview(); renderCalc();
+  }
+
+  /* ---------- events ---------- */
+  $$('.tabs button').forEach(function(b){ b.addEventListener('click', function(){ setTab(b.dataset.tab); }); });
+
+  $('#date').addEventListener('change', function(e){
+    if (!e.target.value) return;
+    cur = e.target.value; refreshDay();
+    if (tab !== 'day') setTab('day');
+  });
+
+  $('#loavesM').addEventListener('input', function(e){ D().loavesM = e.target.value; commit(); });
+  $('#loavesE').addEventListener('input', function(e){ D().loavesE = e.target.value; commit(); });
+  $('#counted').addEventListener('input', function(e){ D().counted = e.target.value; commit(); });
+  $('#floatCarry').addEventListener('input', function(e){ D().float = e.target.value; commit(); });
+
+  $('#chips').innerHTML = CHIPS.map(function(c){ return '<button type="button" data-chip="' + c + '">' + c + '</button>'; }).join('');
+  $('#chips').addEventListener('click', function(e){
+    var b = e.target.closest('[data-chip]'); if (!b) return;
+    $('#cLabel').value = b.dataset.chip; $('#cAmt').focus();
+  });
+
+  function addCharge(){
+    var label = $('#cLabel').value.trim(), amt = num($('#cAmt').value);
+    if (!label || amt <= 0){ flag(label ? $('#cAmt') : $('#cLabel')); return; }
+    D().charges.push({id:uid(), label:label, amt:amt});
+    $('#cLabel').value = ''; $('#cAmt').value = '';
+    renderCharges(); commit(); $('#cLabel').focus();
+  }
+  $('#cAdd').addEventListener('click', addCharge);
+  $('#cAmt').addEventListener('keydown', function(e){ if (e.key === 'Enter') addCharge(); });
+
+  $('#chargeList').addEventListener('click', function(e){
+    var b = e.target.closest('[data-del-charge]'); if (!b) return;
+    var d = D(); d.charges = d.charges.filter(function(c){ return c.id !== b.dataset.delCharge; });
+    renderCharges(); commit();
+  });
+
+  $('#dType').addEventListener('click', function(e){
+    var b = e.target.closest('[data-t]'); if (!b) return;
+    dtype = b.dataset.t;
+    $$('#dType button').forEach(function(x){ x.classList.toggle('on', x === b); });
+    $('#dVal').placeholder = dtype === 'debt' ? 'عدد الخبز' : 'المبلغ (ريال)';
+    renderDPreview();
+  });
+  $('#dVal').addEventListener('input', renderDPreview);
+
+  function addEntry(){
+    var name = $('#dName').value.trim(), v = num($('#dVal').value);
+    if (!name){ flag($('#dName')); return; }
+    if (v <= 0){ flag($('#dVal')); return; }
+    if (dtype === 'debt') S.ledger.push({id:uid(), date:cur, name:name, type:'debt', loaves:v, amt:v * S.settings.price});
+    else S.ledger.push({id:uid(), date:cur, name:name, type:'pay', amt:v});
+    $('#dName').value = ''; $('#dVal').value = '';
+    renderDList(); renderDPreview(); commit();
+  }
+  $('#dAdd').addEventListener('click', addEntry);
+  $('#dVal').addEventListener('keydown', function(e){ if (e.key === 'Enter') addEntry(); });
+
+  function delEntry(id){
+    S.ledger = S.ledger.filter(function(e){ return e.id !== id; });
+    renderDList(); commit();
+    if (tab === 'debts') renderDebts();
+  }
+  $('#dList').addEventListener('click', function(e){
+    var b = e.target.closest('[data-del-led]'); if (b) delEntry(b.dataset.delLed);
+  });
+
+  $('#t-debts').addEventListener('click', function(e){
+    var del = e.target.closest('[data-del-led]');
+    if (del){ delEntry(del.dataset.delLed); return; }
+    var r = e.target.closest('[data-repay]');
+    if (r){
+      var card = r.closest('.person'), name = card.dataset.name;
+      var p = balances().filter(function(x){ return x.name === name; })[0];
+      if (!p) return;
+      var raw = card.querySelector('input').value;
+      var v = raw === '' ? p.bal : num(raw);
+      if (v <= 0) return;
+      S.ledger.push({id:uid(), date:cur, name:name, type:'pay', amt:v});
+      renderDList(); commit(); renderDebts();
+    }
+  });
+
+  $('#t-hist').addEventListener('click', function(e){
+    var o = e.target.closest('[data-open]');
