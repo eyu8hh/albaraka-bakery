@@ -422,43 +422,97 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   var SUPABASE_URL = 'https://svbrddhkhoqwztwxlbhj.supabase.co';
   var SUPABASE_KEY = 'sb_publishable_sFRbQrghlbwgFff_MJsoow_9xDHK-37';
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  var cloud = {uid:null, timer:null, ok:false, role:null, shops:[], deliveries:[], payments:[], channel:null, version:null};
+  var cloud = {uid:null, timer:null, ok:false, role:null, shops:[], deliveries:[], payments:[], channel:null, version:null, base:null, revision:0, syncedRevision:0, flushing:false};
   function setSync(t){ var el = $('#syncLbl'); if (el) el.textContent = t; }
+  function cloneState(v){ return JSON.parse(JSON.stringify(v)); }
+  function sameState(a,b){ return JSON.stringify(a) === JSON.stringify(b); }
+  function mergeThreeWay(base, local, remote){
+    if (sameState(local,base)) return cloneState(remote);
+    if (sameState(remote,base)) return cloneState(local);
+    if (Array.isArray(local) && Array.isArray(remote) && Array.isArray(base)){
+      var keyed = local.concat(remote,base).every(function(x){ return x && typeof x==='object' && x.id!==undefined; });
+      if (!keyed) return cloneState(local);
+      var bm=new Map(base.map(function(x){return [String(x.id),x];}));
+      var lm=new Map(local.map(function(x){return [String(x.id),x];}));
+      var rm=new Map(remote.map(function(x){return [String(x.id),x];}));
+      var ids=Array.from(new Set([...remote,...local,...base].map(function(x){return String(x.id);})));
+      var out=[];
+      ids.forEach(function(id){
+        var b=bm.get(id), l=lm.get(id), r=rm.get(id);
+        if (!l && !r) return;
+        if (!l){ if (b && r) return; if (r) out.push(cloneState(r)); return; }
+        if (!r){ if (b && sameState(l,b)) return; out.push(cloneState(l)); return; }
+        out.push(mergeThreeWay(b||{},l,r));
+      });
+      return out;
+    }
+    if (local && remote && base && !Array.isArray(local) && !Array.isArray(remote) && !Array.isArray(base) &&
+        typeof local==='object' && typeof remote==='object' && typeof base==='object'){
+      var out={};
+      var keys=new Set([...Object.keys(base),...Object.keys(local),...Object.keys(remote)]);
+      keys.forEach(function(k){
+        var b=base[k],l=local[k],r=remote[k];
+        if (l===undefined && r===undefined) return;
+        if (l===undefined){ if (b!==undefined) return; out[k]=cloneState(r); return; }
+        if (r===undefined){ if (b!==undefined && sameState(l,b)) return; out[k]=cloneState(l); return; }
+        out[k]=mergeThreeWay(b===undefined?{}:b,l,r);
+      });
+      return out;
+    }
+    return cloneState(local);
+  }
+  function scheduleFlush(delay){
+    if (!cloud.ok) return;
+    clearTimeout(cloud.timer);
+    cloud.timer=setTimeout(flush,delay===undefined?700:delay);
+  }
   function save(){
+    cloud.revision++;
     try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){}
-    if (cloud.ok){ setSync('جارٍ الحفظ في الحساب المشترك…'); clearTimeout(cloud.timer); cloud.timer=setTimeout(flush,700); }
+    if (cloud.ok){ setSync('جارٍ الحفظ في الحساب المشترك…'); scheduleFlush(); }
   }
   async function flush(){
-    if (!cloud.ok) return;
-    const {data,error}=await sb.rpc('save_bakery_app_state',{p_payload:S,p_expected_updated_at:cloud.version});
-    if(error){setSync('تعذّر الحفظ السحابي — بيانات هذا الهاتف محفوظة محلياً');return;}
-    if(data===true){
-      const {data:latest}=await sb.from('bakery_app_state').select('updated_at').eq('id',1).maybeSingle();
-      if(latest) cloud.version=latest.updated_at;
-      setSync('محفوظ ومشترك ✓');
-      return;
-    }
-    const {data:remote,error:readError}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
-    if(readError||!remote){setSync('تعارض في الحفظ؛ احتفظ بنسخة احتياطية قبل المتابعة');return;}
-    const local=S, server=remote.payload||{};
-    S=normalizeState({settings:Object.assign({},DEF.settings,server.settings||{},local.settings||{}),days:Object.assign({},server.days||{},local.days||{}),ledger:Array.from(new Map([...asList(server.ledger),...asList(local.ledger)].map(function(x){return [x.id,x];})).values())});
-    cloud.version=remote.updated_at;
-    try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
-    setSync('تم دمج التعديلات المتزامنة؛ جارٍ إعادة الحفظ…');
-    clearTimeout(cloud.timer);cloud.timer=setTimeout(flush,150);
+    if (!cloud.ok || cloud.flushing) return;
+    cloud.flushing=true;
+    var sentRevision=cloud.revision, sent=cloneState(S), sentBase=cloud.base?cloneState(cloud.base):cloneState(S);
+    try{
+      const {data,error}=await sb.rpc('save_bakery_app_state',{p_payload:sent,p_expected_updated_at:cloud.version});
+      if(error){setSync('تعذّر الحفظ السحابي — بيانات هذا الهاتف محفوظة محلياً');return;}
+      if(data===true){
+        cloud.base=sent; cloud.syncedRevision=sentRevision;
+        const {data:latest,error:latestError}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
+        if(latestError||!latest){setSync('حُفظت البيانات، لكن تعذّر تحديث رقم المزامنة.');return;}
+        cloud.version=latest.updated_at;
+        if(!sameState(latest.payload||{},sent)){
+          S=normalizeState(mergeThreeWay(sent,S,latest.payload||{}));
+          cloud.base=cloneState(latest.payload||{}); cloud.syncedRevision=cloud.revision;
+          try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+          setSync('تم دمج تعديل متزامن؛ جارٍ الحفظ…'); scheduleFlush(150); return;
+        }
+        if(cloud.revision>sentRevision){setSync('توجد تعديلات جديدة؛ جارٍ حفظها…');scheduleFlush(150);}
+        else setSync('محفوظ ومشترك ✓');
+        return;
+      }
+      const {data:remote,error:readError}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
+      if(readError||!remote){setSync('تعارض في الحفظ؛ احتفظ بنسخة احتياطية قبل المتابعة');return;}
+      S=normalizeState(mergeThreeWay(sentBase,S,remote.payload||{}));
+      cloud.version=remote.updated_at; cloud.base=cloneState(remote.payload||{}); cloud.syncedRevision=cloud.revision;
+      try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+      setSync('تم دمج التعديلات المتزامنة؛ جارٍ إعادة الحفظ…'); scheduleFlush(150);
+    } finally { cloud.flushing=false; }
   }
   async function loadShared(){
     const {data,error}=await withTimeout(sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle(),15000,'تأخر تحميل بيانات المخبزة من قاعدة البيانات. تحقق من الاتصال ثم أعد المحاولة.');
     if(error) throw error;
     if(data && data.payload){      S=normalizeState(data.payload);
-      cloud.version=data.updated_at;
+      cloud.version=data.updated_at; cloud.base=cloneState(data.payload); cloud.syncedRevision=cloud.revision;
       try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
     } else {
       const {error:ins}=await sb.from('bakery_app_state').insert({id:1,payload:S,updated_by:cloud.uid});
       if(ins && ins.code!=='23505') throw ins;
       const {data:created,error:readError}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).single();
       if(readError) throw readError;
-      if(created){cloud.version=created.updated_at;S=normalizeState(created.payload||S);}
+      if(created){cloud.version=created.updated_at;S=normalizeState(created.payload||S);cloud.base=cloneState(created.payload||S);cloud.syncedRevision=cloud.revision;}
     }
   }
   function showLogin(show){ $('#loginGate').style.display=show?'grid':'none'; }
@@ -478,8 +532,12 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     await loadShops();
     if(cloud.channel){ await sb.removeChannel(cloud.channel); cloud.channel=null; }
     cloud.channel=sb.channel('bakery-shared-state').on('postgres_changes',{event:'*',schema:'public',table:'bakery_app_state'},async()=>{
-      const {data}=await sb.from('bakery_app_state').select('payload').eq('id',1).maybeSingle();
-      if(data&&data.payload){ S=normalizeState(data.payload); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} refreshDay();renderBadge(); if(tab==='debts')renderDebts();if(tab==='hist')renderHist(); }
+      const {data}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
+      if(!data||!data.payload||!data.updated_at||data.updated_at===cloud.version)return;
+      if(cloud.revision>cloud.syncedRevision){ scheduleFlush(150); return; }
+      S=normalizeState(data.payload); cloud.base=cloneState(data.payload); cloud.version=data.updated_at; cloud.syncedRevision=cloud.revision;
+      try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+      refreshDay();renderBadge(); if(tab==='debts')renderDebts();if(tab==='hist')renderHist();if(tab==='shops')loadShops();if(tab==='set')renderSettings();
     }).subscribe();
   }
   function withTimeout(promise, ms, message){
@@ -922,10 +980,11 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   function personCard(p){
     var items = p.items.slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).map(function(e){
       var isDebt = e.type === 'debt';
+      var locked = !!(S.days[e.date] && S.days[e.date].closed);
       return '<div class="item"><span class="grow"><span class="tag ' + (isDebt ? 'debt' : 'pay') + '">' + (isDebt ? 'دين' : 'استرجاع') + '</span>' + esc(fmtDate(e.date)) +
         (isDebt ? '<small>' + m(e.loaves || 0) + ' خبزة</small>' : '') + '</span>' +
         '<span class="n ' + (isDebt ? 'neg' : 'pos') + '">' + m(e.amt) + ' ريال</span>' +
-        '<button class="x" data-del-led="' + e.id + '" aria-label="حذف">×</button></div>';
+        (locked ? '' : '<button class="x" data-del-led="' + e.id + '" aria-label="حذف">×') + '</div>';
     }).join('');
     var open = p.bal > 0.004, dayClosed = !!(S.days[cur] && S.days[cur].closed);
     return '<div class="card person" data-name="' + esc(p.name) + '"><div class="ph"><b>' + esc(p.name) + '</b>' +
@@ -1053,6 +1112,9 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   $('#dVal').addEventListener('keydown', function(e){ if (e.key === 'Enter') addEntry(); });
 
   function delEntry(id){
+    var entry=S.ledger.find(function(e){return e.id===id;});
+    if(!entry)return;
+    if(S.days[entry.date] && S.days[entry.date].closed){alert('لا يمكن حذف حركة مرتبطة بيوم مغلق. أعد فتح اليوم أولا.');return;}
     S.ledger = S.ledger.filter(function(e){ return e.id !== id; });
     renderDList(); commit();
     if (tab === 'debts') renderDebts();
