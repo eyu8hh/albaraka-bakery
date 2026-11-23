@@ -397,8 +397,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   async function loadShared(){
     const {data,error}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
     if(error) throw error;
-    if(data && data.payload){
-      S={settings:Object.assign({},DEF.settings,data.payload.settings||{}),days:data.payload.days||{},ledger:Array.isArray(data.payload.ledger)?data.payload.ledger:[]};
+    if(data && data.payload){      S={settings:Object.assign({},DEF.settings,data.payload.settings||{}),days:data.payload.days||{},ledger:Array.isArray(data.payload.ledger)?data.payload.ledger:[]};
       cloud.version=data.updated_at;
       try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
     } else {
@@ -797,8 +796,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     if (c.charity) rows.push(['−', 'خبز صدقة', '<small class="n">' + m(c.charity) + ' خبزة</small>', c.charityVal, 'neg']);
     if (c.breadN) rows.push(['−', 'خبز أخذه العمال', '<small class="n">' + m(c.breadN) + ' خبزة</small>', c.breadVal, 'neg']);
     if (c.wasteN) rows.push(['−', 'خبز ملغي', '<small class="n">' + m(c.wasteN) + ' خبزة</small>', c.wasteVal, 'neg']);
-    if (c.repay) rows.push(['+', 'ديون مسترجعة', '', c.repay, 'pos']);
-    rows.push(['−', 'المصاريف', '', c.ch, 'neg']);
+    if (c.repay) rows.push(['+', 'ديون مسترجعة', '', c.repay, 'pos']);    rows.push(['−', 'المصاريف', '', c.ch, 'neg']);
     SHIFTS.forEach(function(sx){
       var k = sx[0], diff = Math.abs(c.shiftTaken[k] - c.shiftDue[k]) > 0.004;
       rows.push(['−', 'أجور ' + sx[1], diff ? '<small class="n">المستحق ' + m(c.shiftDue[k]) + '</small>' : '', c.shiftPaid[k], 'neg']);
@@ -998,3 +996,157 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
 
   $('#t-hist').addEventListener('click', function(e){
     var o = e.target.closest('[data-open]');
+    if (o){ cur = o.dataset.open; refreshDay(); setTab('day'); return; }
+    var d = e.target.closest('[data-del-day]');
+    if (d){
+      armed(d, function(){
+        var k = d.dataset.delDay;
+        delete S.days[k];
+        S.ledger = S.ledger.filter(function(x){ return x.date !== k; });
+        markDirty(monthOf(k)); save(); if (k === cur) refreshDay();
+        renderBadge(); renderHist();
+      });
+    }
+  });
+
+  $$('[data-k]').forEach(function(i){
+    i.addEventListener('input', function(){
+      S.settings[i.dataset.k] = num(i.value);
+      markDirty('settings'); save(); renderCalc();
+    });
+  });
+
+  $('#bShow').addEventListener('click', function(){
+    var t = $('#backup'); t.value = JSON.stringify(S); t.focus(); t.select();
+    $('#bMsg').textContent = 'انسخ هذا النص كاملا واحتفظ به.';
+  });
+  $('#bLoad').addEventListener('click', function(){
+    var btn = $('#bLoad');
+    armed(btn, function(){
+      try {
+        var o = JSON.parse($('#backup').value);
+        if (!o || typeof o !== 'object' || !o.days || !Array.isArray(o.ledger)) throw new Error('bad');
+        S = { settings:Object.assign({}, DEF.settings, o.settings), days:o.days, ledger:o.ledger };
+        markDirty('settings'); Object.keys(S.days).forEach(function(k){ markDirty(monthOf(k)); }); S.ledger.forEach(function(e){ markDirty(monthOf(e.date)); });
+        save(); refreshDay(); renderBadge(); renderSettings();
+        $('#bMsg').textContent = 'تم الاسترجاع.';
+      } catch(e){
+        $('#bMsg').textContent = 'النص غير صالح. الصق النسخة الاحتياطية كاملة.';
+      }
+    });
+  });
+
+  /* ---------- workers ---------- */
+  $('#workers').innerHTML = SHIFTS.map(function(sx){
+    return '<div class="shift"><div class="shh"><b>' + sx[1] + '</b><span class="hint" style="margin:0" id="sl-' + sx[0] + '"></span></div>' +
+      '<div class="wg wgh"><span>الاسم</span><span>خبز</span><span>أخذ (dh)</span><span>يستحق</span></div>' +
+      ROLES.map(function(r){
+        var id = sx[0] + '-' + r[0];
+        return '<div class="wrl">' + r[1] + '</div><div class="wg">' +
+          '<input id="wn-' + id + '" data-who="' + id + '" type="text" list="wnames" placeholder="اسم العامل" autocomplete="off" aria-label="' + r[1] + ' ' + sx[1] + '">' +
+          '<input id="wb-' + id + '" data-bread="' + id + '" type="text" inputmode="numeric" min="0" placeholder="0" aria-label="عدد الخبز الذي أخذه معه">' +
+          '<input id="wp-' + id + '" data-pay="' + id + '" type="text" inputmode="decimal" placeholder="0" aria-label="ما أخذه">' +
+          '<div class="due" id="wd-' + id + '"></div></div>';
+      }).join('') + '</div>';
+  }).join('') + '<datalist id="wnames"></datalist><div id="people"></div>';
+  function shiftEntry(id){ var a = id.split('-'); var d = D(); return d.shifts[a[0]][a[1]]; }
+  $$('[data-who]').forEach(function(i){
+    i.addEventListener('input', function(){ shiftEntry(i.dataset.who).who = i.value; commit(); });
+  });
+  $$('[data-bread]').forEach(function(i){
+    i.addEventListener('input', function(){ shiftEntry(i.dataset.bread).bread = i.value; commit(); });
+  });
+  $('#charity').addEventListener('input', function(e){ D().charity = e.target.value; commit(); });
+  $$('[data-pay]').forEach(function(i){
+    i.addEventListener('input', function(){ shiftEntry(i.dataset.pay).paid = i.value; commit(); });
+  });
+
+  /* ---------- waste ---------- */
+  $('#wReason').innerHTML = REASONS.map(function(r){ return '<button type="button" role="radio" aria-checked="false" data-r="' + r[0] + '">' + r[1] + '</button>'; }).join('');
+  $('#wReason').addEventListener('click', function(e){
+    var b = e.target.closest('[data-r]'); if (!b) return;
+    wreason = b.dataset.r;
+    $$('#wReason button').forEach(function(x){ var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-checked', on ? 'true' : 'false'); });
+  });
+  function addWaste(){
+    var n = num($('#wVal').value);
+    if (!wreason){ var g = $('#wReason'); g.classList.add('bad'); setTimeout(function(){ g.classList.remove('bad'); }, 1800); return; }
+    if (n <= 0){ flag($('#wVal')); return; }
+    D().waste.push({id:uid(), n:n, reason:wreason});
+    $('#wVal').value = ''; renderWaste(); commit();
+  }
+  $('#wAdd').addEventListener('click', addWaste);
+  $('#wVal').addEventListener('keydown', function(e){ if (e.key === 'Enter') addWaste(); });
+  $('#wasteList').addEventListener('click', function(e){
+    var b = e.target.closest('[data-del-waste]'); if (!b) return;
+    var d = D(); d.waste = d.waste.filter(function(w){ return w.id !== b.dataset.delWaste; });
+    renderWaste(); commit();
+  });
+
+  /* ---------- close day ---------- */
+  function showOk(t){
+    var b = $('#ok'); b.hidden = false; b.textContent = t;
+    clearTimeout(showOk.t); showOk.t = setTimeout(function(){ b.hidden = true; }, 7000);
+  }
+  $('#closeBtn').addEventListener('click', function(){
+    var d = D(), btn = this, msg = $('#closeMsg'); msg.textContent = '';
+    if (d.closed){ d.closed = false; delete d.closedAt; commit(); return; }
+    var c = calc(cur), el;
+    if (c.n <= 0){ msg.textContent = 'أدخل عدد الخبز أولا.'; el = $('#loavesM'); }
+    else if (c.counted === null){ msg.textContent = 'أدخل المبلغ الموجود فعليا في الخزنة أولا.'; el = $('#counted'); }
+    if (el){ el.scrollIntoView({block:'center'}); flag(el); return; }
+    armed(btn, function(){
+      var done = cur;
+      d.closed = true; d.closedAt = Date.now(); commit();
+      var nx = new Date(cur + 'T00:00:00'); nx.setDate(nx.getDate() + 1);
+      cur = iso(nx); refreshDay(); setTab('day');
+      showOk('✓ تم إنهاء ' + fmtDate(done) + ' وحفظه في السجل. أنت الآن في ' + fmtDate(cur) + '.');
+    }, 'اضغط مرة أخرى لتأكيد الإنهاء');
+  });
+
+  /* ---------- report ---------- */
+  if (navigator.share) $('#rShare').hidden = false;
+  function needCounted(){
+    if (calc(cur).counted !== null) return false;
+    var el = $('#counted');
+    el.scrollIntoView({block:'center'}); flag(el);
+    $('#rMsg').textContent = 'أدخل المبلغ الموجود في الخزنة أولا، ثم انسخ الرسالة.';
+    return true;
+  }
+  $('#rCopy').addEventListener('click', function(){
+    if (needCounted()) return;
+    var t = $('#report'), txt = t.value, msg = $('#rMsg');
+    function fallback(){
+      t.focus(); t.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch(e){}
+      msg.textContent = ok ? 'تم النسخ، الصقه في واتساب أو أي تطبيق.' : 'حدّدتُ النص، اضغط عليه مطولا واختر «نسخ».';
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){ msg.textContent = 'تم النسخ، الصقه في واتساب أو أي تطبيق.'; }, fallback);
+    } else fallback();
+  });
+  $('#rShare').addEventListener('click', function(){
+    if (needCounted()) return;
+    navigator.share({text: $('#report').value}).catch(function(){});
+  });
+
+  /* ---------- mobile keyboard helpers ---------- */
+  window.addEventListener('error', function(e){ var b = $('#err'); b.hidden = false; b.textContent = 'Error: ' + e.message; });
+  var barT;
+  document.addEventListener('focusin', function(e){
+    if (e.target.matches && e.target.matches('input,textarea')){ clearTimeout(barT); $('#bar').style.display = 'none'; }
+  });
+  document.addEventListener('focusout', function(){
+    clearTimeout(barT); barT = setTimeout(function(){ $('#bar').style.display = ''; }, 400);
+  });
+  $$('.add button, .chips button').forEach(function(b){
+    b.addEventListener('mousedown', function(e){ e.preventDefault(); });
+  });
+
+  /* ---------- init ---------- */
+  refreshDay(); renderBadge(); setTab('day');
+  initCloud();
+})();
+</script>
+</body>
+</html>
