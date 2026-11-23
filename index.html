@@ -922,7 +922,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     $('#extrasImpact').innerHTML=(cash>=0?'+ ':'− ')+m(Math.abs(cash))+' ريال نقداً · − '+m(bread)+' ريال قيمة الخبز';
     var locked=!!d.closed;
     ['ownerCashAmount','ownerBreadQty','houseBreadQty','houseCashAmount','workerUseName','workerUseQty','ownerCashAdd','ownerBreadAdd','houseBreadAdd','houseCashAdd','workerUseAdd'].forEach(function(id){var el=$('#'+id);if(el)el.disabled=locked;});
-    $('#ownerCashType button').forEach(function(b){b.disabled=locked;});
+    $$('#ownerCashType button').forEach(function(b){b.disabled=locked;});
     $('#extrasList').querySelectorAll('[data-del-extra]').forEach(function(b){b.disabled=locked;});
   }
   function addExtra(kind,data){
@@ -933,7 +933,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   }
   $('#ownerCashType').addEventListener('click',function(e){
     var b=e.target.closest('[data-cash]');if(!b||D().closed)return;
-    $('#ownerCashType button').forEach(function(x){x.classList.toggle('on',x===b);});
+    $$('#ownerCashType button').forEach(function(x){x.classList.toggle('on',x===b);});
   });
   $('#ownerCashAdd').addEventListener('click',function(){
     var amount=num($('#ownerCashAmount').value);if(amount<=0){flag($('#ownerCashAmount'));return;}
