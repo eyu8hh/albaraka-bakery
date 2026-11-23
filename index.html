@@ -114,7 +114,7 @@ button.danger{background:var(--neg); color:#fff; border-color:var(--neg)}
 .rnet{display:flex; justify-content:space-between; align-items:baseline; gap:10px; border-top:2px dashed var(--ink); margin-top:10px; padding-top:12px}
 .rnet span{font-weight:600}
 .rnet .v{font-size:34px; font-weight:700; line-height:1.1}
-.float{display:grid; grid-template-columns:1fr auto auto; column-gap:12px; row-gap:2px; font-size:14px}
+.float{display:grid;grid-template-columns:1fr;gap:6px;font-size:14px}.float strong{font-size:20px}
 .float .h{color:var(--muted); font-size:12px}
 .float .r{text-align:end}
 .diff{margin-top:10px; padding:10px 12px; border-radius:10px; font-weight:600; background:var(--field)}
@@ -168,7 +168,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       <h1>مخبزة البركة</h1>
       <span class="sub" id="dateLbl"></span>
     </div>
-    <input type="date" id="date" aria-label="تاريخ اليوم">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><input type="date" id="date" aria-label="تاريخ اليوم"><button id="signOutTop" type="button" style="min-height:40px;padding:0 10px;font-size:13px">تسجيل الخروج</button></div>
   </header>
 
   <nav class="tabs" aria-label="التبويبات">
@@ -444,7 +444,20 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     if(error){$('#loginError').textContent='تعذّر تسجيل الدخول. تحقق من الاسم وكلمة المرور.';return;}
     // The SIGNED_IN auth event initializes the session; do not initialize it a second time here.
   });
-  $('#signOut').addEventListener('click',()=>sb.auth.signOut());
+  async function signOutNow(){
+    const buttons=[$('#signOut'),$('#signOutTop')].filter(Boolean);
+    buttons.forEach(b=>{b.disabled=true;b.textContent='جارٍ الخروج…';});
+    try{
+      if(cloud.ok){clearTimeout(cloud.timer);await flush();}
+      const {error}=await sb.auth.signOut();
+      if(error) throw error;
+    }catch(e){
+      $('#authMsg').textContent='تعذّر تسجيل الخروج. تحقق من الاتصال ثم حاول مجدداً.';
+      buttons.forEach(b=>{b.disabled=false;b.textContent='تسجيل الخروج';});
+    }
+  }
+  $('#signOut').addEventListener('click',signOutNow);
+  $('#signOutTop').addEventListener('click',signOutNow);
   $('#changePassword').addEventListener('click',async()=>{
     const password=$('#newPassword').value; if(password.length<8){$('#authMsg').textContent='استخدم 8 أحرف على الأقل.';return;}
     const {error}=await sb.auth.updateUser({password}); $('#authMsg').textContent=error?'تعذّر تغيير كلمة المرور.': 'تم تغيير كلمة المرور.'; if(!error) $('#newPassword').value='';
@@ -690,21 +703,6 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     else $('#dPrev').textContent = '';
   }
 
-  function floatRows(value){
-    var f = num(value);
-    var b = f >= 3000 ? 1000 : f / 3;
-    var rest = Math.max(0, f - 3000);
-    var notes = Math.floor(rest / 400);
-    var left = rest - notes * 400;
-    var rows = [
-      {t:'قطع', d:20, c:Math.round(b/20)},
-      {t:'قطع', d:100, c:Math.round(b/100)},
-      {t:'قطع', d:200, c:Math.round(b/200)},
-      {t:'أوراق', d:400, c:notes}
-    ];
-    return {rows:rows, left:left};
-  }
-
   function buildReport(c){
     var d = D(), s = S.settings, L = [];
     var fm = function(v){ return m(v) + ' ريال'; };
@@ -807,13 +805,8 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     '<div class="rnet"><span>الصافي الذي يجب إدخاله</span><span class="v ' + (c.net < 0 ? 'neg' : '') + '">' + money(c.net) + '</span></div>' +
     (c.net < 0 ? '<p class="hint neg">المصاريف والأجور أكبر من المبيعات اليوم.</p>' : '');
 
-    var fr = floatRows(c.float);
     if (document.activeElement !== $('#floatCarry')) $('#floatCarry').value = m(c.float);
-    $('#floatBox').innerHTML = '<span class="h">الفئة</span><span class="h r">العدد</span><span class="h r">المجموع</span>' +
-      fr.rows.map(function(r){
-        return '<span>' + r.t + ' من ' + r.d + ' ريال</span><span class="r n">' + r.c + '</span><span class="r n">' + m(r.c * r.d) + ' ريال</span>';
-      }).join('') +
-      (fr.left > 0 ? '<span>باقي غير موزع</span><span></span><span class="r n">' + m(fr.left) + ' ريال</span>' : '');
+    $('#floatBox').innerHTML = '<span>المبلغ الإجمالي المرحّل لليوم التالي</span><strong class="n">' + m(c.float) + ' ريال</strong>';
     $('#expected').innerHTML = money(c.expected);
 
     var dl = $('#diffLine');
