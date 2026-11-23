@@ -436,7 +436,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     clearTimeout(cloud.timer);cloud.timer=setTimeout(flush,150);
   }
   async function loadShared(){
-    const {data,error}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
+    const {data,error}=await withTimeout(sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle(),15000,'تأخر تحميل بيانات المخبزة من قاعدة البيانات. تحقق من الاتصال ثم أعد المحاولة.');
     if(error) throw error;
     if(data && data.payload){      S={settings:Object.assign({},DEF.settings,data.payload.settings||{}),days:data.payload.days||{},ledger:Array.isArray(data.payload.ledger)?data.payload.ledger:[]};
       cloud.version=data.updated_at;
@@ -480,14 +480,8 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       if(session){await withTimeout(establishSession(session),25000,'تم التحقق من الحساب لكن تعذّر تحميل البيانات. تحقق من اتصال الإنترنت وحاول مجدداً.');}
       else showLogin(true);
     }catch(e){$('#loginError').textContent=e.message||'تعذّر الاتصال بخدمة تسجيل الدخول.';showLogin(true);}
-    sb.auth.onAuthStateChange((event,session)=>{
-      if(event==='SIGNED_IN' && session){
-        $('#loginError').textContent='تم التحقق، جارٍ تحميل بيانات الحساب…';
-        setTimeout(()=>withTimeout(establishSession(session),25000,'تم التحقق من الحساب لكن تعذّر تحميل البيانات. تحقق من الإنترنت وحاول مجدداً.').catch(e=>{
-          cloud.ok=false; cloud.uid=null; $('#loginError').textContent=e.message||'تعذّر تحميل بيانات الحساب.'; showLogin(true);
-          const b=$('#loginForm button[type="submit"]'); if(b){b.disabled=false;b.textContent='دخول';}
-        }),0);
-      }else if(event==='SIGNED_OUT'){
+    sb.auth.onAuthStateChange((event)=>{
+      if(event==='SIGNED_OUT'){
         cloud.ok=false;cloud.uid=null;if(cloud.channel){sb.removeChannel(cloud.channel);cloud.channel=null;}showLogin(true);
       }
     });
@@ -503,7 +497,11 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     try{
       const result=await withTimeout(sb.auth.signInWithPassword({email,password:$('#loginPass').value}),15000,'لم يصل رد من خدمة تسجيل الدخول. تحقق من الإنترنت ثم حاول مجدداً.');
       if(result.error){$('#loginError').textContent='تعذّر تسجيل الدخول. تحقق من اسم المستخدم وكلمة المرور.';btn.disabled=false;btn.textContent='دخول';return;}
+      const session=result.data && result.data.session;
+      if(!session) throw new Error('تم تسجيل الدخول لكن لم تصل بيانات الجلسة. أعد المحاولة.');
       $('#loginError').textContent='تم التحقق، جارٍ تحميل بيانات الحساب…';
+      await withTimeout(establishSession(session),45000,'تم التحقق من الحساب، لكن انتهت مهلة تحميل بيانات المخبزة. أعد المحاولة بعد التأكد من الإنترنت.');
+      btn.disabled=false;btn.textContent='دخول';
     }catch(err){
       $('#loginError').textContent=err.message||'حدث خطأ أثناء تسجيل الدخول. حاول مجدداً.';
       btn.disabled=false;btn.textContent='دخول';
@@ -535,11 +533,11 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     $('#authMsg').textContent=error?'تعذّر تغيير كلمة مرور البائع؛ تحقق من إعداد وظيفة الإدارة.':'تم تغيير كلمة مرور البائع.';
   });
   async function loadShops(){
-    const [shops,deliveries,payments]=await Promise.all([
+    const [shops,deliveries,payments]=await withTimeout(Promise.all([
       sb.from('bakery_shops').select('*').order('created_at',{ascending:false}),
       sb.from('bakery_shop_deliveries').select('*').order('delivered_at',{ascending:false}),
       sb.from('bakery_shop_payments').select('*').order('paid_at',{ascending:false})
-    ]);
+    ]),20000,'تم تحميل بيانات الحساب، لكن تأخر تحميل بيانات المحلات. يمكنك المتابعة ثم إعادة المحاولة.');
     if(shops.error||deliveries.error||payments.error){$('#shopsList').textContent='تعذّر تحميل بيانات المحلات. تحقق من الاتصال ثم أعد المحاولة.';return;}
     cloud.shops=shops.data||[]; cloud.deliveries=deliveries.data||[]; cloud.payments=payments.data||[]; renderShops();
   }
