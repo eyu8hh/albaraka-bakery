@@ -360,6 +360,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
 <script>
 (function(){
   var KEY = 'bakery_v1';
+  var BASE_KEY = KEY + '_cloud_base';
   var DEF = { settings:{price:40, dough:10, cook:10, seller:1000, float:7000}, days:{}, ledger:[] };
   function asList(value){
     if(Array.isArray(value)) return value;
@@ -426,6 +427,12 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   function setSync(t){ var el = $('#syncLbl'); if (el) el.textContent = t; }
   function cloneState(v){ return JSON.parse(JSON.stringify(v)); }
   function sameState(a,b){ return JSON.stringify(a) === JSON.stringify(b); }
+  function readCloudBase(){
+    try{var raw=localStorage.getItem(BASE_KEY);return raw?normalizeState(JSON.parse(raw)):null;}catch(e){return null;}
+  }
+  function storeCloudBase(value){
+    try{localStorage.setItem(BASE_KEY,JSON.stringify(value));}catch(e){}
+  }
   function mergeThreeWay(base, local, remote){
     if (sameState(local,base)) return cloneState(remote);
     if (sameState(remote,base)) return cloneState(local);
@@ -479,13 +486,13 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       const {data,error}=await sb.rpc('save_bakery_app_state',{p_payload:sent,p_expected_updated_at:cloud.version});
       if(error){setSync('تعذّر الحفظ السحابي — بيانات هذا الهاتف محفوظة محلياً');return;}
       if(data===true){
-        cloud.base=sent; cloud.syncedRevision=sentRevision;
+        cloud.base=sent; storeCloudBase(sent); cloud.syncedRevision=sentRevision;
         const {data:latest,error:latestError}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
         if(latestError||!latest){setSync('حُفظت البيانات، لكن تعذّر تحديث رقم المزامنة.');return;}
         cloud.version=latest.updated_at;
         if(!sameState(latest.payload||{},sent)){
           S=normalizeState(mergeThreeWay(sent,S,latest.payload||{}));
-          cloud.base=cloneState(latest.payload||{}); cloud.syncedRevision=cloud.revision;
+          cloud.base=cloneState(latest.payload||{}); storeCloudBase(cloud.base); cloud.syncedRevision=cloud.revision;
           try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
           setSync('تم دمج تعديل متزامن؛ جارٍ الحفظ…'); scheduleFlush(150); return;
         }
@@ -496,7 +503,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       const {data:remote,error:readError}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
       if(readError||!remote){setSync('تعارض في الحفظ؛ احتفظ بنسخة احتياطية قبل المتابعة');return;}
       S=normalizeState(mergeThreeWay(sentBase,S,remote.payload||{}));
-      cloud.version=remote.updated_at; cloud.base=cloneState(remote.payload||{}); cloud.syncedRevision=cloud.revision;
+      cloud.version=remote.updated_at; cloud.base=cloneState(remote.payload||{}); storeCloudBase(cloud.base); cloud.syncedRevision=cloud.revision;
       try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
       setSync('تم دمج التعديلات المتزامنة؛ جارٍ إعادة الحفظ…'); scheduleFlush(150);
     } finally { cloud.flushing=false; }
@@ -504,15 +511,28 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   async function loadShared(){
     const {data,error}=await withTimeout(sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle(),15000,'تأخر تحميل بيانات المخبزة من قاعدة البيانات. تحقق من الاتصال ثم أعد المحاولة.');
     if(error) throw error;
-    if(data && data.payload){      S=normalizeState(data.payload);
-      cloud.version=data.updated_at; cloud.base=cloneState(data.payload); cloud.syncedRevision=cloud.revision;
+    if(data && data.payload){
+      var remoteState=normalizeState(data.payload);
+      var localState=normalizeState(S);
+      var previousBase=readCloudBase();
+      var hasRecoverableLocalChanges=!!previousBase && !sameState(localState,previousBase);
+      S=hasRecoverableLocalChanges
+        ? normalizeState(mergeThreeWay(previousBase,localState,remoteState))
+        : remoteState;
+      cloud.version=data.updated_at; cloud.base=cloneState(remoteState); storeCloudBase(remoteState);
+      cloud.syncedRevision=cloud.revision;
       try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+      if(hasRecoverableLocalChanges && !sameState(S,remoteState)){
+        cloud.revision++;
+        setSync('استُعيدت تعديلات هذا الهاتف غير المتزامنة؛ جارٍ دمجها…');
+        scheduleFlush(250);
+      }
     } else {
       const {error:ins}=await sb.from('bakery_app_state').insert({id:1,payload:S,updated_by:cloud.uid});
       if(ins && ins.code!=='23505') throw ins;
       const {data:created,error:readError}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).single();
       if(readError) throw readError;
-      if(created){cloud.version=created.updated_at;S=normalizeState(created.payload||S);cloud.base=cloneState(created.payload||S);cloud.syncedRevision=cloud.revision;}
+      if(created){cloud.version=created.updated_at;S=normalizeState(created.payload||S);cloud.base=cloneState(created.payload||S);storeCloudBase(cloud.base);cloud.syncedRevision=cloud.revision;try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
     }
   }
   function showLogin(show){ $('#loginGate').style.display=show?'grid':'none'; }
@@ -535,7 +555,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       const {data}=await sb.from('bakery_app_state').select('payload,updated_at').eq('id',1).maybeSingle();
       if(!data||!data.payload||!data.updated_at||data.updated_at===cloud.version)return;
       if(cloud.revision>cloud.syncedRevision){ scheduleFlush(150); return; }
-      S=normalizeState(data.payload); cloud.base=cloneState(data.payload); cloud.version=data.updated_at; cloud.syncedRevision=cloud.revision;
+      S=normalizeState(data.payload); cloud.base=cloneState(data.payload); storeCloudBase(cloud.base); cloud.version=data.updated_at; cloud.syncedRevision=cloud.revision;
       try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
       refreshDay();renderBadge(); if(tab==='debts')renderDebts();if(tab==='hist')renderHist();if(tab==='shops')loadShops();if(tab==='set')renderSettings();
     }).subscribe();
