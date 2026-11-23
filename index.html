@@ -55,7 +55,7 @@ input[type=date]{width:auto; direction:ltr; text-align:center}
 button{cursor:pointer; border:1px solid var(--line); background:var(--paper); border-radius:10px; min-height:44px; padding:0 14px}
 button.primary{background:var(--accent); color:var(--on-accent); border-color:var(--accent); font-weight:600}
 button.danger{background:var(--neg); color:#fff; border-color:var(--neg)}
-.tabs{display:grid; grid-template-columns:repeat(4,1fr); gap:4px; background:var(--paper); padding:4px; border-radius:12px; border:1px solid var(--line); margin-bottom:14px}
+.tabs{display:grid; grid-template-columns:repeat(3,1fr); gap:4px; background:var(--paper); padding:4px; border-radius:12px; border:1px solid var(--line); margin-bottom:14px}
 .tabs button{border:0; background:transparent; min-height:42px; padding:0 4px; border-radius:9px; color:var(--muted); font-weight:500; font-size:15px}
 .tabs button.on{background:var(--ink); color:var(--bg); font-weight:600}
 .badge{display:inline-block; font-size:11px; margin-inline-start:4px; padding:0 6px; border-radius:99px; background:var(--accent); color:var(--on-accent); vertical-align:middle}
@@ -882,7 +882,64 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     $('#barNet').innerHTML = money(c.net);
     $('#report').value = buildReport(c);
     renderClosed();
+    if ($('#extrasList')) renderExtras();
   }
+
+  function renderExtras(){
+    var d=D(), c=calc(cur), rows=d.extras.slice().reverse();
+    var labels={owner_cash:'حركة صاحب العمل بالخزنة',owner_bread:'خبز أخذه صاحب العمل',house_cash:'مبلغ أخذته الدار',house_bread:'خبز أخذته الدار',worker_internal:'استهلاك العمال داخل المخبزة'};
+    $('#extrasList').innerHTML=rows.length?rows.map(function(x){
+      var detail=labels[x.kind]||'حركة';
+      if(x.kind==='owner_cash') detail+=(x.direction==='add'?' — إضافة':' — سحب')+' · '+m(x.amount)+' ريال';
+      if(x.kind==='house_cash') detail+=' · '+m(x.amount)+' ريال';
+      if(x.kind==='owner_bread'||x.kind==='house_bread'||x.kind==='worker_internal') detail+=' · '+m(x.loaves)+' خبزة';
+      if(x.name) detail+=' · '+esc(x.name);
+      return '<div class="item"><span class="grow">'+detail+'</span><button class="x" data-del-extra="'+x.id+'" aria-label="حذف الحركة">×</button></div>';
+    }).join(''):'<p class="hint">لا توجد حركات مسجلة لهذا اليوم.</p>';
+    var cash=c.ownerCash-c.houseCash, bread=c.ownerBreadVal+c.houseBreadVal+c.workerInternalVal;
+    $('#extrasImpact').innerHTML=(cash>=0?'+ ':'− ')+m(Math.abs(cash))+' ريال نقداً · − '+m(bread)+' ريال قيمة الخبز';
+    var locked=!!d.closed;
+    ['ownerCashAmount','ownerBreadQty','houseBreadQty','houseCashAmount','workerUseName','workerUseQty','ownerCashAdd','ownerBreadAdd','houseBreadAdd','houseCashAdd','workerUseAdd'].forEach(function(id){var el=$('#'+id);if(el)el.disabled=locked;});
+    $('#ownerCashType button').forEach(function(b){b.disabled=locked;});
+    $('#extrasList').querySelectorAll('[data-del-extra]').forEach(function(b){b.disabled=locked;});
+  }
+  function addExtra(kind,data){
+    var d=D();
+    if(d.closed){alert('هذا اليوم منتهٍ. أعد فتح اليوم قبل إضافة أو تعديل الحركات.');return false;}
+    d.extras.push(Object.assign({id:uid(),kind:kind,at:new Date().toISOString()},data||{}));
+    commit(); return true;
+  }
+  $('#ownerCashType').addEventListener('click',function(e){
+    var b=e.target.closest('[data-cash]');if(!b||D().closed)return;
+    $('#ownerCashType button').forEach(function(x){x.classList.toggle('on',x===b);});
+  });
+  $('#ownerCashAdd').addEventListener('click',function(){
+    var amount=num($('#ownerCashAmount').value);if(amount<=0){flag($('#ownerCashAmount'));return;}
+    var direction=$('#ownerCashType .on').dataset.cash;
+    if(addExtra('owner_cash',{amount:amount,direction:direction}))$('#ownerCashAmount').value='';
+  });
+  $('#ownerBreadAdd').addEventListener('click',function(){
+    var loaves=num($('#ownerBreadQty').value);if(loaves<=0){flag($('#ownerBreadQty'));return;}
+    if(addExtra('owner_bread',{loaves:loaves}))$('#ownerBreadQty').value='';
+  });
+  $('#houseBreadAdd').addEventListener('click',function(){
+    var loaves=num($('#houseBreadQty').value);if(loaves<=0){flag($('#houseBreadQty'));return;}
+    if(addExtra('house_bread',{loaves:loaves}))$('#houseBreadQty').value='';
+  });
+  $('#houseCashAdd').addEventListener('click',function(){
+    var amount=num($('#houseCashAmount').value);if(amount<=0){flag($('#houseCashAmount'));return;}
+    if(addExtra('house_cash',{amount:amount}))$('#houseCashAmount').value='';
+  });
+  $('#workerUseAdd').addEventListener('click',function(){
+    var loaves=num($('#workerUseQty').value);if(loaves<=0){flag($('#workerUseQty'));return;}
+    if(addExtra('worker_internal',{loaves:loaves,name:$('#workerUseName').value.trim()})){ $('#workerUseName').value='';$('#workerUseQty').value='';}
+  });
+  $('#extrasList').addEventListener('click',function(e){
+    var b=e.target.closest('[data-del-extra]');if(!b)return;
+    var d=D();if(d.closed){alert('أعد فتح اليوم قبل التعديل.');return;}
+    d.extras=d.extras.filter(function(x){return x.id!==b.dataset.delExtra;});
+    commit();
+  });
 
   function renderBadge(){
     var t = totalOpen(), b = $('#badge');
