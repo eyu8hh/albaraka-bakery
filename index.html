@@ -146,9 +146,6 @@ fieldset{border:0; padding:0; margin:0; min-width:0}
 .errbar{background:var(--neg); color:#fff; border-radius:10px; padding:8px 12px; margin-bottom:10px; font-size:14px; direction:ltr; text-align:left; overflow-wrap:anywhere}
 [hidden]{display:none!important}
 textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
-#report{direction:rtl; text-align:right; font-size:14px; min-height:260px; line-height:1.6; resize:vertical}
-.rbtns{display:grid; grid-template-columns:1fr; gap:8px; margin-top:8px}
-.rbtns:has(#rShare:not([hidden])){grid-template-columns:1fr 1fr}
 </style>
 </head>
 <body>
@@ -297,16 +294,6 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     </div>
 
     </fieldset>
-
-    <div class="card">
-      <h2>رسالة اليوم</h2>
-      <textarea id="report" readonly aria-label="رسالة اليوم"></textarea>
-      <div class="rbtns">
-        <button class="primary" id="rCopy">نسخ الرسالة</button>
-        <button id="rShare" hidden>مشاركة</button>
-      </div>
-      <p class="hint" id="rMsg"></p>
-    </div>
 
     <div class="card">
       <p class="hint" id="closeNote" style="margin:0 0 10px"></p>
@@ -802,68 +789,6 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     else $('#dPrev').textContent = '';
   }
 
-  function buildReport(c){
-    var d = D(), s = S.settings, L = [];
-    var fm = function(v){ return m(v) + ' ريال'; };
-    L.push('تقرير المخبزة - ' + fmtDate(cur));
-    L.push('');
-    L.push('الخبز: الصباح ' + m(c.nM) + '، المساء ' + m(c.nE) + '، المجموع ' + m(c.n));
-    L.push('المبيعات (' + m(c.n) + ' × ' + m(s.price) + '): ' + fm(c.rev));
-    if (c.charity) L.push('خبز صدقة: ' + m(c.charity) + ' خبزة (' + fm(c.charityVal) + ')');
-    if (c.breadN) L.push('خبز أخذه العمال معهم: ' + m(c.breadN) + ' خبزة (' + fm(c.breadVal) + ')');
-    if (c.ownerBread) L.push('خبز أخذه صاحب العمل: ' + m(c.ownerBread) + ' خبزة (' + fm(c.ownerBreadVal) + ')');
-    if (c.houseBread) L.push('خبز الدار: ' + m(c.houseBread) + ' خبزة (' + fm(c.houseBreadVal) + ')');
-    if (c.workerInternal) L.push('استهلاك العمال داخل المخبزة: ' + m(c.workerInternal) + ' خبزة (' + fm(c.workerInternalVal) + ')');
-    if (c.ownerCash) L.push('حركة صاحب العمل في الخزنة: ' + (c.ownerCash > 0 ? 'إضافة ' : 'سحب ') + fm(Math.abs(c.ownerCash)));
-    if (c.houseCash) L.push('مبلغ أخذته الدار: ' + fm(c.houseCash));
-    if (c.wasteN){
-      L.push('خبز ملغي: ' + m(c.wasteN) + ' خبزة (' + fm(c.wasteVal) + ')');
-      REASONS.forEach(function(r){ if (c.wasteBy[r[0]]) L.push('- ' + r[1] + ': ' + m(c.wasteBy[r[0]]) + ' خبزة'); });
-    }
-    var led = S.ledger.filter(function(e){ return e.date === cur; });
-    var debts = led.filter(function(e){ return e.type === 'debt'; }), pays = led.filter(function(e){ return e.type === 'pay'; });
-    if (debts.length){ L.push(''); L.push('خبز بالدين:'); debts.forEach(function(e){ L.push('- ' + e.name + ': ' + m(e.loaves || 0) + ' خبزة (' + fm(e.amt) + ')'); }); }
-    if (pays.length){ L.push(''); L.push('ديون مسترجعة:'); pays.forEach(function(e){ L.push('- ' + e.name + ': ' + fm(e.amt)); }); }
-    L.push('');
-    L.push('المصاريف:');
-    if (d.charges.length) d.charges.forEach(function(x){ L.push('- ' + x.label + ': ' + fm(x.amt)); });
-    else L.push('- لا شيء');
-    L.push('مجموع المصاريف: ' + fm(c.ch));
-    var rn = {}; ROLES.forEach(function(r){ rn[r[0]] = r[1]; });
-    SHIFTS.forEach(function(sx){
-      L.push(''); L.push('أجور ' + sx[1] + ' (' + m(sx[0] === 'M' ? c.nM : c.nE) + ' خبزة):');
-      c.rows.filter(function(r){ return r.sk === sx[0]; }).forEach(function(r){
-        var who = r.who || 'بدون اسم';
-        if (r.owner) L.push('- ' + rn[r.rk] + ': ' + OWNER + ' (بدون أجر)');
-        else L.push('- ' + rn[r.rk] + ': ' + who + '، يستحق ' + fm(r.due) + '، أخذ ' + fm(r.cash) + (r.bn ? '، خبز ' + m(r.bn) : ''));
-      });
-    });
-    var names = {};
-    Object.keys(c.persons).forEach(function(n){ names[n] = 1; });
-    knownNames().forEach(function(n){ if (Math.abs(carryBefore(cur, n)) > 0.004) names[n] = 1; });
-    var plist = Object.keys(names).filter(function(n){
-      var carry = carryBefore(cur, n), p = c.persons[n] || {due:0, paid:0};
-      return Math.abs(carry + p.due - p.paid) > 0.004;
-    });
-    if (plist.length){
-      L.push(''); L.push('متبقي العمال:');
-      plist.forEach(function(n){
-        var p = c.persons[n] || {due:0, paid:0}, bal = carryBefore(cur, n) + p.due - p.paid;
-        L.push('- ' + n + ': ' + (bal > 0 ? 'باقي له ' + fm(bal) : 'أخذ زيادة ' + fm(-bal)));
-      });
-    }
-    L.push('');
-    L.push('الصافي بعد احتساب سحوبات صاحب العمل والدار واستهلاك العمال: ' + fm(c.net));
-    L.push('يبقى في الخزنة لليوم الموالي: ' + fm(c.float));
-    L.push('المتوقع في الخزنة: ' + fm(c.expected));
-    if (c.counted === null) L.push('المبلغ الموجود فعليا في الخزنة: لم يُدخل بعد');
-    else {
-      L.push('المبلغ الموجود فعليا في الخزنة: ' + fm(c.counted));
-      L.push(Math.abs(c.diff) < 0.005 ? 'الحساب مضبوط' : (c.diff > 0 ? 'زيادة: ' + fm(c.diff) : 'نقص: ' + fm(-c.diff)));
-    }
-    return L.join('\n');
-  }
-
   function renderCalc(){
     var s = S.settings, d = D(), c = calc(cur);
     $('#revLine').innerHTML = c.n > 0 ? 'المجموع: ' + m(c.nM) + ' + ' + m(c.nE) + ' = ' + m(c.n) + ' خبزة × ' + m(s.price) + ' = ' + money(c.rev) : 'أدخل خبز الصباح وخبز المساء لحساب المبيعات';
@@ -919,7 +844,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     $('#expected').innerHTML = money(c.expected);
 
     var dl = $('#diffLine');
-    if (c.diff === null){ dl.hidden = false; dl.className = 'diff'; dl.textContent = 'أدخل المبلغ الموجود في الخزنة حتى تتمكن من نسخ الرسالة.'; }
+    if (c.diff === null){ dl.hidden = false; dl.className = 'diff'; dl.textContent = 'أدخل المبلغ الموجود فعليا في الخزنة لإكمال المطابقة.'; }
     else {
       dl.hidden = false;
       if (Math.abs(c.diff) < 0.005){ dl.className = 'diff pos'; dl.textContent = 'الحساب مضبوط، لا فرق.'; }
@@ -927,7 +852,6 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       else { dl.className = 'diff neg'; dl.innerHTML = 'نقص في الخزنة: ' + money(c.diff); }
     }
     $('#barNet').innerHTML = money(c.net);
-    $('#report').value = buildReport(c);
     renderClosed();
     if ($('#extrasList')) renderExtras();
   }
@@ -1261,32 +1185,6 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       cur = iso(nx); refreshDay(); setTab('day');
       showOk('✓ تم إنهاء ' + fmtDate(done) + ' وحفظه في السجل. أنت الآن في ' + fmtDate(cur) + '.');
     }, 'اضغط مرة أخرى لتأكيد الإنهاء');
-  });
-
-  /* ---------- report ---------- */
-  if (navigator.share) $('#rShare').hidden = false;
-  function needCounted(){
-    if (calc(cur).counted !== null) return false;
-    var el = $('#counted');
-    el.scrollIntoView({block:'center'}); flag(el);
-    $('#rMsg').textContent = 'أدخل المبلغ الموجود في الخزنة أولا، ثم انسخ الرسالة.';
-    return true;
-  }
-  $('#rCopy').addEventListener('click', function(){
-    if (needCounted()) return;
-    var t = $('#report'), txt = t.value, msg = $('#rMsg');
-    function fallback(){
-      t.focus(); t.select();
-      var ok = false; try { ok = document.execCommand('copy'); } catch(e){}
-      msg.textContent = ok ? 'تم النسخ، الصقه في واتساب أو أي تطبيق.' : 'حدّدتُ النص، اضغط عليه مطولا واختر «نسخ».';
-    }
-    if (navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(txt).then(function(){ msg.textContent = 'تم النسخ، الصقه في واتساب أو أي تطبيق.'; }, fallback);
-    } else fallback();
-  });
-  $('#rShare').addEventListener('click', function(){
-    if (needCounted()) return;
-    navigator.share({text: $('#report').value}).catch(function(){});
   });
 
   /* ---------- mobile keyboard helpers ---------- */
