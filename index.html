@@ -176,6 +176,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     <button data-tab="debts">الديون<span class="badge" id="badge" hidden></span></button>
     <button data-tab="hist">السجل</button>
     <button data-tab="shops">المحلات</button>
+    <button data-tab="extras">السحوبات والاستهلاك</button>
     <button data-tab="set">الإعدادات</button>
   </nav>
 
@@ -281,6 +282,46 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
 
   <!-- السجل -->
   <section id="t-hist" hidden></section>
+
+  <!-- السحوبات والاستهلاك -->
+  <section id="t-extras" hidden>
+    <div class="card">
+      <h2>حركات صاحب العمل والخزنة</h2>
+      <p class="hint">سجّل أي مبلغ يأخذه صاحب العمل من الخزنة أو يضيفه إليها. الإضافة تزيد رصيد الخزنة والسحب ينقصه.</p>
+      <div class="seg" id="ownerCashType">
+        <button class="on" data-cash="take">سحب من الخزنة</button>
+        <button data-cash="add">إضافة إلى الخزنة</button>
+      </div>
+      <div class="add2">
+        <input id="ownerCashAmount" type="text" inputmode="decimal" placeholder="المبلغ بالريال">
+        <button class="primary" id="ownerCashAdd">تسجيل الحركة</button>
+      </div>
+      <div class="field">
+        <label for="ownerBreadQty">خبز أخذه صاحب العمل</label>
+        <div class="add2"><input id="ownerBreadQty" type="text" inputmode="numeric" placeholder="عدد الخبز"><button id="ownerBreadAdd">تسجيل الخبز</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>الدار — منزل صاحب العمل</h2>
+      <p class="hint">سجّل ما تأخذه الدار من خبز أو مال، بشكل منفصل عن سحوبات صاحب العمل الشخصية.</p>
+      <div class="field"><label for="houseBreadQty">عدد الخبز المأخوذ إلى الدار</label><div class="add2"><input id="houseBreadQty" type="text" inputmode="numeric" placeholder="عدد الخبز"><button id="houseBreadAdd">تسجيل الخبز</button></div></div>
+      <div class="field"><label for="houseCashAmount">مبلغ مأخوذ إلى الدار بالريال</label><div class="add2"><input id="houseCashAmount" type="text" inputmode="decimal" placeholder="المبلغ"><button id="houseCashAdd">تسجيل المبلغ</button></div></div>
+    </div>
+    <div class="card">
+      <h2>استهلاك العمال داخل المخبزة</h2>
+      <p class="hint">هذا للخبز الذي يأكله العامل أثناء العمل أو الفطور داخل المخبزة. وهو منفصل عن خانة خبز العامل الذي يأخذه معه إلى الخارج في قسم أجور العمال.</p>
+      <div class="add">
+        <input id="workerUseName" type="text" placeholder="اسم العامل (اختياري)" autocomplete="off">
+        <input id="workerUseQty" type="text" inputmode="numeric" placeholder="عدد الخبز">
+        <button class="primary" id="workerUseAdd">تسجيل الاستهلاك</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>حركات اليوم المحدد</h2>
+      <div id="extrasList"></div>
+      <div class="total"><span>أثر الحركات على الخزنة وصافي اليوم</span><b id="extrasImpact"></b></div>
+    </div>
+  </section>
 
   <!-- المحلات -->
   <section id="t-shops" hidden>
@@ -531,7 +572,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       ROLES.forEach(function(r){ if (!d.shifts[sx[0]][r[0]]) d.shifts[sx[0]][r[0]] = {who:'', paid:'', bread:''}; if (d.shifts[sx[0]][r[0]].bread === undefined) d.shifts[sx[0]][r[0]].bread = ''; });
     });
   }
-  function blank(){ return {loavesM:'', loavesE:'', charity:'', waste:[], charges:[], counted:'', shifts:blankShifts()}; }
+  function blank(){ return {loavesM:'', loavesE:'', charity:'', waste:[], charges:[], counted:'', shifts:blankShifts(), extras:[]}; }
   function D(){
     if (!S.days[cur]){
       var b = blank(), prev = Object.keys(S.days).filter(function(k){ return k < cur; }).sort().pop();
@@ -547,6 +588,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       S.days[cur].float = prior ? num(S.days[prior].float) : num(S.settings.float);
     }
     ensureShifts(S.days[cur]);
+    if (!Array.isArray(S.days[cur].extras)) S.days[cur].extras = [];
     return S.days[cur];
   }
 
@@ -558,7 +600,8 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     var debt = led.filter(function(e){ return e.type === 'debt'; }).reduce(function(a,e){ return a + e.amt; }, 0);
     var debtN = led.filter(function(e){ return e.type === 'debt'; }).reduce(function(a,e){ return a + (e.loaves || 0); }, 0);
     var repay = led.filter(function(e){ return e.type === 'pay'; }).reduce(function(a,e){ return a + e.amt; }, 0);
-    var started = (d.loavesM !== undefined ? d.loavesM !== '' : d.loaves !== '') || (d.loavesE !== undefined && d.loavesE !== '') || d.charges.length > 0 || led.length > 0 || (d.charity !== undefined && d.charity !== '') || (d.waste && d.waste.length > 0);
+    var extras = Array.isArray(d.extras) ? d.extras : [];
+    var started = (d.loavesM !== undefined ? d.loavesM !== '' : d.loaves !== '') || (d.loavesE !== undefined && d.loavesE !== '') || d.charges.length > 0 || led.length > 0 || extras.length > 0 || (d.charity !== undefined && d.charity !== '') || (d.waste && d.waste.length > 0);
     var wasteBy = {burnt:0, dropped:0, left:0}, wasteN = 0;
     (d.waste || []).forEach(function(w){ wasteBy[w.reason] = (wasteBy[w.reason] || 0) + w.n; wasteN += w.n; });
     var wasteVal = wasteN * s.price;
@@ -586,12 +629,21 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
         }
       });
     });
-    var net = rev - debt - charityVal - wasteVal - breadVal + repay - ch - cashPaid;
+    var ownerCash = 0, ownerBread = 0, houseCash = 0, houseBread = 0, workerInternal = 0;
+    extras.forEach(function(x){
+      if (x.kind === 'owner_cash') ownerCash += x.direction === 'add' ? num(x.amount) : -num(x.amount);
+      if (x.kind === 'owner_bread') ownerBread += num(x.loaves);
+      if (x.kind === 'house_cash') houseCash += num(x.amount);
+      if (x.kind === 'house_bread') houseBread += num(x.loaves);
+      if (x.kind === 'worker_internal') workerInternal += num(x.loaves);
+    });
+    var ownerBreadVal = ownerBread * s.price, houseBreadVal = houseBread * s.price, workerInternalVal = workerInternal * s.price;
+    var net = rev - debt - charityVal - wasteVal - breadVal + repay - ch - cashPaid + ownerCash - houseCash - ownerBreadVal - houseBreadVal - workerInternalVal;
     var carryFloat = num(d.float !== undefined ? d.float : s.float);
     var expected = carryFloat + net;
     var counted = (d.counted === undefined || !/[0-9\u0660-\u0669\u06F0-\u06F9]/.test(String(d.counted))) ? null : num(d.counted);
     var diff = counted === null ? null : counted - expected;
-    return {rows:rows, persons:persons, shiftPaid:shiftPaid, shiftTaken:shiftTaken, shiftDue:shiftDue, cashPaid:cashPaid, breadVal:breadVal, breadN:breadN, charity:charity, charityVal:charityVal, wasteBy:wasteBy, wasteN:wasteN, wasteVal:wasteVal, n:n, nM:nM, nE:nE, rev:rev, ch:ch, debt:debt, debtN:debtN, repay:repay, net:net, expected:expected, counted:counted, diff:diff};
+    return {rows:rows, persons:persons, shiftPaid:shiftPaid, shiftTaken:shiftTaken, shiftDue:shiftDue, cashPaid:cashPaid, breadVal:breadVal, breadN:breadN, charity:charity, charityVal:charityVal, wasteBy:wasteBy, wasteN:wasteN, wasteVal:wasteVal, ownerCash:ownerCash, ownerBread:ownerBread, ownerBreadVal:ownerBreadVal, houseCash:houseCash, houseBread:houseBread, houseBreadVal:houseBreadVal, workerInternal:workerInternal, workerInternalVal:workerInternalVal, n:n, nM:nM, nE:nE, rev:rev, ch:ch, debt:debt, debtN:debtN, repay:repay, net:net, expected:expected, counted:counted, diff:diff};
   }
 
   function carryBefore(date, name){
@@ -711,7 +763,12 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     L.push('الخبز: الصباح ' + m(c.nM) + '، المساء ' + m(c.nE) + '، المجموع ' + m(c.n));
     L.push('المبيعات (' + m(c.n) + ' × ' + m(s.price) + '): ' + fm(c.rev));
     if (c.charity) L.push('خبز صدقة: ' + m(c.charity) + ' خبزة (' + fm(c.charityVal) + ')');
-    if (c.breadN) L.push('خبز أخذه العمال: ' + m(c.breadN) + ' خبزة (' + fm(c.breadVal) + ')');
+    if (c.breadN) L.push('خبز أخذه العمال معهم: ' + m(c.breadN) + ' خبزة (' + fm(c.breadVal) + ')');
+    if (c.ownerBread) L.push('خبز أخذه صاحب العمل: ' + m(c.ownerBread) + ' خبزة (' + fm(c.ownerBreadVal) + ')');
+    if (c.houseBread) L.push('خبز الدار: ' + m(c.houseBread) + ' خبزة (' + fm(c.houseBreadVal) + ')');
+    if (c.workerInternal) L.push('استهلاك العمال داخل المخبزة: ' + m(c.workerInternal) + ' خبزة (' + fm(c.workerInternalVal) + ')');
+    if (c.ownerCash) L.push('حركة صاحب العمل في الخزنة: ' + (c.ownerCash > 0 ? 'إضافة ' : 'سحب ') + fm(Math.abs(c.ownerCash)));
+    if (c.houseCash) L.push('مبلغ أخذته الدار: ' + fm(c.houseCash));
     if (c.wasteN){
       L.push('خبز ملغي: ' + m(c.wasteN) + ' خبزة (' + fm(c.wasteVal) + ')');
       REASONS.forEach(function(r){ if (c.wasteBy[r[0]]) L.push('- ' + r[1] + ': ' + m(c.wasteBy[r[0]]) + ' خبزة'); });
@@ -749,7 +806,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       });
     }
     L.push('');
-    L.push('الصافي الذي يجب إدخاله: ' + fm(c.net));
+    L.push('الصافي بعد احتساب سحوبات صاحب العمل والدار واستهلاك العمال: ' + fm(c.net));
     L.push('يبقى في الخزنة لليوم الموالي: ' + fm(c.float));
     L.push('المتوقع في الخزنة: ' + fm(c.expected));
     if (c.counted === null) L.push('المبلغ الموجود فعليا في الخزنة: لم يُدخل بعد');
@@ -792,7 +849,12 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     rows.push(['+', 'مبيعات الخبز', '<small class="n">' + m(c.n) + ' × ' + m(s.price) + '</small>', c.rev, 'pos']);
     if (c.debt) rows.push(['−', 'خبز بالدين', '<small class="n">' + m(c.debtN) + ' خبزة</small>', c.debt, 'neg']);
     if (c.charity) rows.push(['−', 'خبز صدقة', '<small class="n">' + m(c.charity) + ' خبزة</small>', c.charityVal, 'neg']);
-    if (c.breadN) rows.push(['−', 'خبز أخذه العمال', '<small class="n">' + m(c.breadN) + ' خبزة</small>', c.breadVal, 'neg']);
+    if (c.breadN) rows.push(['−', 'خبز أخذه العمال معهم', '<small class="n">' + m(c.breadN) + ' خبزة</small>', c.breadVal, 'neg']);
+    if (c.ownerBread) rows.push(['−', 'خبز أخذه صاحب العمل', '<small class="n">' + m(c.ownerBread) + ' خبزة</small>', c.ownerBreadVal, 'neg']);
+    if (c.houseBread) rows.push(['−', 'خبز الدار', '<small class="n">' + m(c.houseBread) + ' خبزة</small>', c.houseBreadVal, 'neg']);
+    if (c.workerInternal) rows.push(['−', 'استهلاك العمال داخل المخبزة', '<small class="n">' + m(c.workerInternal) + ' خبزة</small>', c.workerInternalVal, 'neg']);
+    if (c.ownerCash) rows.push([c.ownerCash > 0 ? '+' : '−', 'حركة صاحب العمل النقدية', '', Math.abs(c.ownerCash), c.ownerCash > 0 ? 'pos' : 'neg']);
+    if (c.houseCash) rows.push(['−', 'مبلغ أخذته الدار', '', c.houseCash, 'neg']);
     if (c.wasteN) rows.push(['−', 'خبز ملغي', '<small class="n">' + m(c.wasteN) + ' خبزة</small>', c.wasteVal, 'neg']);
     if (c.repay) rows.push(['+', 'ديون مسترجعة', '', c.repay, 'pos']);    rows.push(['−', 'المصاريف', '', c.ch, 'neg']);
     SHIFTS.forEach(function(sx){
@@ -860,7 +922,7 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   /* ---------- rendering: history ---------- */
   function renderHist(){
     var rows = Object.keys(S.days).filter(function(k){
-      var sn = S.days[k].snap; return sn && (sn.n > 0 || sn.ch > 0 || sn.debt > 0 || sn.repay > 0);
+      var sn = S.days[k].snap; return sn && (sn.n > 0 || sn.ch > 0 || sn.debt > 0 || sn.repay > 0 || (S.days[k].extras && S.days[k].extras.length));
     }).sort(function(a,b){ return b.localeCompare(a); });
     var cut = new Date(); cut.setDate(cut.getDate() - 6);
     var cutIso = iso(cut);
@@ -885,12 +947,13 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   function setTab(t){
     tab = t;
     $$('.tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.tab === t); });
-    ['day','debts','hist','shops','set'].forEach(function(k){ $('#t-' + k).hidden = (k !== t); });
+    ['day','debts','hist','shops','set','extras'].forEach(function(k){ $('#t-' + k).hidden = (k !== t); });
     $('#bar').hidden = (t !== 'day');
     if (t === 'debts') renderDebts();
     if (t === 'hist') renderHist();
     if (t === 'set') renderSettings();
     if (t === 'shops') loadShops();
+    if (t === 'extras') renderExtras();
     window.scrollTo(0, 0);
   }
 
