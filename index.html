@@ -176,7 +176,6 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
     <button data-tab="debts">الديون<span class="badge" id="badge" hidden></span></button>
     <button data-tab="hist">السجل</button>
     <button data-tab="shops">المحلات</button>
-    <button data-tab="extras">السحوبات والاستهلاك</button>
     <button data-tab="set">الإعدادات</button>
   </nav>
 
@@ -244,6 +243,45 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       <div class="hint" id="wasteLine"></div>
     </div>
 
+    <!-- السحوبات والاستهلاك ضمن صفحة اليوم -->
+  <section id="t-extras" hidden>
+    <div class="card">
+      <h2>حركات صاحب العمل والخزنة</h2>
+      <p class="hint">سجّل أي مبلغ يأخذه صاحب العمل من الخزنة أو يضيفه إليها. الإضافة تزيد رصيد الخزنة والسحب ينقصه.</p>
+      <div class="seg" id="ownerCashType">
+        <button class="on" data-cash="take">سحب من الخزنة</button>
+        <button data-cash="add">إضافة إلى الخزنة</button>
+      </div>
+      <div class="add2">
+        <input id="ownerCashAmount" type="text" inputmode="decimal" placeholder="المبلغ بالريال">
+        <button class="primary" id="ownerCashAdd">تسجيل الحركة</button>
+      </div>
+      <div class="field">
+        <label for="ownerBreadQty">خبز أخذه صاحب العمل</label>
+        <div class="add2"><input id="ownerBreadQty" type="text" inputmode="numeric" placeholder="عدد الخبز"><button id="ownerBreadAdd">تسجيل الخبز</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>الدار — منزل صاحب العمل</h2>
+      <p class="hint">سجّل ما تأخذه الدار من خبز أو مال، بشكل منفصل عن سحوبات صاحب العمل الشخصية.</p>
+      <div class="field"><label for="houseBreadQty">عدد الخبز المأخوذ إلى الدار</label><div class="add2"><input id="houseBreadQty" type="text" inputmode="numeric" placeholder="عدد الخبز"><button id="houseBreadAdd">تسجيل الخبز</button></div></div>
+      <div class="field"><label for="houseCashAmount">مبلغ مأخوذ إلى الدار بالريال</label><div class="add2"><input id="houseCashAmount" type="text" inputmode="decimal" placeholder="المبلغ"><button id="houseCashAdd">تسجيل المبلغ</button></div></div>
+    </div>
+    <div class="card">
+      <h2>استهلاك العمال داخل المخبزة</h2>
+      <p class="hint">هذا للخبز الذي يأكله العامل أثناء العمل أو الفطور داخل المخبزة. وهو منفصل عن خانة خبز العامل الذي يأخذه معه إلى الخارج في قسم أجور العمال.</p>
+      <div class="add">
+        <input id="workerUseName" type="text" placeholder="اسم العامل (اختياري)" autocomplete="off">
+        <input id="workerUseQty" type="text" inputmode="numeric" placeholder="عدد الخبز">
+        <button class="primary" id="workerUseAdd">تسجيل الاستهلاك</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>حركات اليوم المحدد</h2>
+      <div id="extrasList"></div>
+      <div class="total"><span>أثر الحركات على الخزنة وصافي اليوم</span><b id="extrasImpact"></b></div>
+    </div>
+
     <div class="receipt" id="receipt"></div>
 
     <div class="card">
@@ -283,45 +321,6 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   <!-- السجل -->
   <section id="t-hist" hidden></section>
 
-  <!-- السحوبات والاستهلاك -->
-  <section id="t-extras" hidden>
-    <div class="card">
-      <h2>حركات صاحب العمل والخزنة</h2>
-      <p class="hint">سجّل أي مبلغ يأخذه صاحب العمل من الخزنة أو يضيفه إليها. الإضافة تزيد رصيد الخزنة والسحب ينقصه.</p>
-      <div class="seg" id="ownerCashType">
-        <button class="on" data-cash="take">سحب من الخزنة</button>
-        <button data-cash="add">إضافة إلى الخزنة</button>
-      </div>
-      <div class="add2">
-        <input id="ownerCashAmount" type="text" inputmode="decimal" placeholder="المبلغ بالريال">
-        <button class="primary" id="ownerCashAdd">تسجيل الحركة</button>
-      </div>
-      <div class="field">
-        <label for="ownerBreadQty">خبز أخذه صاحب العمل</label>
-        <div class="add2"><input id="ownerBreadQty" type="text" inputmode="numeric" placeholder="عدد الخبز"><button id="ownerBreadAdd">تسجيل الخبز</button></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>الدار — منزل صاحب العمل</h2>
-      <p class="hint">سجّل ما تأخذه الدار من خبز أو مال، بشكل منفصل عن سحوبات صاحب العمل الشخصية.</p>
-      <div class="field"><label for="houseBreadQty">عدد الخبز المأخوذ إلى الدار</label><div class="add2"><input id="houseBreadQty" type="text" inputmode="numeric" placeholder="عدد الخبز"><button id="houseBreadAdd">تسجيل الخبز</button></div></div>
-      <div class="field"><label for="houseCashAmount">مبلغ مأخوذ إلى الدار بالريال</label><div class="add2"><input id="houseCashAmount" type="text" inputmode="decimal" placeholder="المبلغ"><button id="houseCashAdd">تسجيل المبلغ</button></div></div>
-    </div>
-    <div class="card">
-      <h2>استهلاك العمال داخل المخبزة</h2>
-      <p class="hint">هذا للخبز الذي يأكله العامل أثناء العمل أو الفطور داخل المخبزة. وهو منفصل عن خانة خبز العامل الذي يأخذه معه إلى الخارج في قسم أجور العمال.</p>
-      <div class="add">
-        <input id="workerUseName" type="text" placeholder="اسم العامل (اختياري)" autocomplete="off">
-        <input id="workerUseQty" type="text" inputmode="numeric" placeholder="عدد الخبز">
-        <button class="primary" id="workerUseAdd">تسجيل الاستهلاك</button>
-      </div>
-    </div>
-    <div class="card">
-      <h2>حركات اليوم المحدد</h2>
-      <div id="extrasList"></div>
-      <div class="total"><span>أثر الحركات على الخزنة وصافي اليوم</span><b id="extrasImpact"></b></div>
-    </div>
-  </section>
 
   <!-- المحلات -->
   <section id="t-shops" hidden>
@@ -1051,13 +1050,12 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   function setTab(t){
     tab = t;
     $$('.tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.tab === t); });
-    ['day','debts','hist','shops','set','extras'].forEach(function(k){ $('#t-' + k).hidden = (k !== t); });
+    ['day','debts','hist','shops','set'].forEach(function(k){ $('#t-' + k).hidden = (k !== t); });
     $('#bar').hidden = (t !== 'day');
     if (t === 'debts') renderDebts();
     if (t === 'hist') renderHist();
     if (t === 'set') renderSettings();
     if (t === 'shops') loadShops();
-    if (t === 'extras') renderExtras();
     window.scrollTo(0, 0);
   }
 
