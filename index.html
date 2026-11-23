@@ -1013,7 +1013,13 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
   /* ---------- rendering: history ---------- */
   function renderHist(){
     var rows = Object.keys(S.days).filter(function(k){
-      var sn = S.days[k].snap; return sn && (sn.n > 0 || sn.ch > 0 || sn.debt > 0 || sn.repay > 0 || (S.days[k].extras && S.days[k].extras.length));
+      var d=S.days[k], sn=d.snap;
+      if(!sn)return false;
+      var shiftActivity=!!(d.shifts && SHIFTS.some(function(sx){return ROLES.some(function(r){
+        var e=d.shifts[sx[0]]&&d.shifts[sx[0]][r[0]];
+        return e && ((e.paid!=='' && e.paid!==undefined) || (e.bread!=='' && e.bread!==undefined));
+      });}));
+      return !!d.closed || calc(k).started || shiftActivity;
     }).sort(function(a,b){ return b.localeCompare(a); });
     var cut = new Date(); cut.setDate(cut.getDate() - 6);
     var cutIso = iso(cut);
