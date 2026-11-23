@@ -470,20 +470,44 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       if(data&&data.payload){ S={settings:Object.assign({},DEF.settings,data.payload.settings||{}),days:data.payload.days||{},ledger:data.payload.ledger||[]}; try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} refreshDay();renderBadge(); if(tab==='debts')renderDebts();if(tab==='hist')renderHist(); }
     }).subscribe();
   }
+  function withTimeout(promise, ms, message){
+    return Promise.race([promise,new Promise(function(_,reject){setTimeout(function(){reject(new Error(message));},ms);})]);
+  }
   async function initCloud(){
-    const {data:{session}}=await sb.auth.getSession();
-    if(session){try{await establishSession(session);}catch(e){$('#loginError').textContent=e.message;showLogin(true);}}
-    else showLogin(true);
-    sb.auth.onAuthStateChange((event,session)=>{ if(event==='SIGNED_IN' && session) setTimeout(()=>establishSession(session).catch(e=>{$('#loginError').textContent=e.message;showLogin(true);}),0); else if(event==='SIGNED_OUT'){cloud.ok=false;cloud.uid=null;if(cloud.channel){sb.removeChannel(cloud.channel);cloud.channel=null;}showLogin(true);} });
+    try{
+      const result=await withTimeout(sb.auth.getSession(),15000,'انتهت مهلة الاتصال بخدمة تسجيل الدخول. تحقق من الإنترنت ثم أعد تحميل الصفحة.');
+      const session=result.data && result.data.session;
+      if(session){await withTimeout(establishSession(session),25000,'تم التحقق من الحساب لكن تعذّر تحميل البيانات. تحقق من اتصال الإنترنت وحاول مجدداً.');}
+      else showLogin(true);
+    }catch(e){$('#loginError').textContent=e.message||'تعذّر الاتصال بخدمة تسجيل الدخول.';showLogin(true);}
+    sb.auth.onAuthStateChange((event,session)=>{
+      if(event==='SIGNED_IN' && session){
+        $('#loginError').textContent='تم التحقق، جارٍ تحميل بيانات الحساب…';
+        setTimeout(()=>withTimeout(establishSession(session),25000,'تم التحقق من الحساب لكن تعذّر تحميل البيانات. تحقق من الإنترنت وحاول مجدداً.').catch(e=>{
+          cloud.ok=false; cloud.uid=null; $('#loginError').textContent=e.message||'تعذّر تحميل بيانات الحساب.'; showLogin(true);
+          const b=$('#loginForm button[type="submit"]'); if(b){b.disabled=false;b.textContent='دخول';}
+        }),0);
+      }else if(event==='SIGNED_OUT'){
+        cloud.ok=false;cloud.uid=null;if(cloud.channel){sb.removeChannel(cloud.channel);cloud.channel=null;}showLogin(true);
+      }
+    });
   }
   $('#loginForm').addEventListener('submit',async e=>{
-    e.preventDefault(); $('#loginError').textContent='جارٍ التحقق…';
+    e.preventDefault();
+    const btn=$('#loginForm button[type="submit"]');
+    btn.disabled=true;btn.textContent='جارٍ التحقق…';
+    $('#loginError').textContent='جارٍ التحقق من بيانات الدخول…';
     const username=$('#loginUser').value.trim().toLowerCase();
     const email=username==='s.youssef'?'owner@albaraka-bakery.test':username==='ayb&ysf'?'seller@albaraka-bakery.test':'';
-    if(!email){$('#loginError').textContent='اسم المستخدم غير صحيح.';return;}
-    const {data,error}=await sb.auth.signInWithPassword({email,password:$('#loginPass').value});
-    if(error){$('#loginError').textContent='تعذّر تسجيل الدخول. تحقق من الاسم وكلمة المرور.';return;}
-    // The SIGNED_IN auth event initializes the session; do not initialize it a second time here.
+    if(!email){$('#loginError').textContent='اسم المستخدم غير صحيح.';btn.disabled=false;btn.textContent='دخول';return;}
+    try{
+      const result=await withTimeout(sb.auth.signInWithPassword({email,password:$('#loginPass').value}),15000,'لم يصل رد من خدمة تسجيل الدخول. تحقق من الإنترنت ثم حاول مجدداً.');
+      if(result.error){$('#loginError').textContent='تعذّر تسجيل الدخول. تحقق من اسم المستخدم وكلمة المرور.';btn.disabled=false;btn.textContent='دخول';return;}
+      $('#loginError').textContent='تم التحقق، جارٍ تحميل بيانات الحساب…';
+    }catch(err){
+      $('#loginError').textContent=err.message||'حدث خطأ أثناء تسجيل الدخول. حاول مجدداً.';
+      btn.disabled=false;btn.textContent='دخول';
+    }
   });
   async function signOutNow(){
     const buttons=[$('#signOut'),$('#signOutTop')].filter(Boolean);
