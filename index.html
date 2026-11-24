@@ -558,7 +558,11 @@ textarea{min-height:110px; font-size:12px; direction:ltr; text-align:left}
       S=normalizeState(data.payload); cloud.base=cloneState(data.payload); storeCloudBase(cloud.base); cloud.version=data.updated_at; cloud.syncedRevision=cloud.revision;
       try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
       refreshDay();renderBadge(); if(tab==='debts')renderDebts();if(tab==='hist')renderHist();if(tab==='shops')loadShops();if(tab==='set')renderSettings();
-    }).subscribe();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'bakery_shops'},async()=>{if(tab==='shops')await loadShops();})
+    .on('postgres_changes',{event:'*',schema:'public',table:'bakery_shop_deliveries'},async()=>{if(tab==='shops')await loadShops();})
+    .on('postgres_changes',{event:'*',schema:'public',table:'bakery_shop_payments'},async()=>{if(tab==='shops')await loadShops();})
+    .subscribe();
   }
   window.addEventListener('online',function(){
     if(cloud.ok){
